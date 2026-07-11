@@ -362,7 +362,6 @@ Esto aplica las migraciones nuevas y regenera el cliente en tu máquina. Sin est
 ---
 
 ## Variables de entorno — referencia completa
-|----------------------------------------------------------------------------------------|
 | Variable                   | Requerida | Descripción                                   |
 | -------------------------- | --------- | --------------------------------------------- |
 | `DATABASE_URL`             | Sí        | URL de conexión a PostgreSQL                  |
@@ -376,7 +375,6 @@ Esto aplica las migraciones nuevas y regenera el cliente en tu máquina. Sin est
 | `CLOUDINARY_API_KEY`       | No*       | API Key de Cloudinary                         |
 | `CLOUDINARY_API_SECRET`    | No*       | API Secret de Cloudinary                      |
 | `MERCADOPAGO_ACCESS_TOKEN` | No*       | Access token de MercadoPago                   |
-|----------------------------------------------------------------------------------------|
 
 > *No requeridas para desarrollo local básico, pero necesarias para las funcionalidades de notificaciones, imágenes y pagos.
 
