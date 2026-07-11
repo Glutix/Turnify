@@ -66,6 +66,9 @@ Abrí el `.env` y completá los valores según tu entorno local:
 # ─── BASE DE DATOS ───────────────────────────────────────────
 DATABASE_URL="postgresql://postgres:tupassword@localhost:5432/turnify?schema=public"
 
+# ─── FRONTEND ───────────────────────────────────────────
+FRONTEND_URL="http://localhost:5173"
+
 # ─── JWT ─────────────────────────────────────────────────────
 JWT_SECRET="reemplazar_con_una_clave_secreta_larga_y_segura"
 JWT_EXPIRES_IN="7d"
@@ -359,10 +362,11 @@ Esto aplica las migraciones nuevas y regenera el cliente en tu máquina. Sin est
 ---
 
 ## Variables de entorno — referencia completa
-
+|----------------------------------------------------------------------------------------|
 | Variable                   | Requerida | Descripción                                   |
 | -------------------------- | --------- | --------------------------------------------- |
 | `DATABASE_URL`             | Sí        | URL de conexión a PostgreSQL                  |
+| `FRONTEND_URL`             | Sí        | URL del frontend — usada para configurar CORS |
 | `JWT_SECRET`               | Sí        | Clave secreta para firmar tokens JWT          |
 | `JWT_EXPIRES_IN`           | Sí        | Duración del token (ej: `7d`, `24h`)          |
 | `WHATSAPP_API_URL`         | No*       | URL base de la WhatsApp Business API          |
@@ -372,21 +376,8 @@ Esto aplica las migraciones nuevas y regenera el cliente en tu máquina. Sin est
 | `CLOUDINARY_API_KEY`       | No*       | API Key de Cloudinary                         |
 | `CLOUDINARY_API_SECRET`    | No*       | API Secret de Cloudinary                      |
 | `MERCADOPAGO_ACCESS_TOKEN` | No*       | Access token de MercadoPago                   |
-| `FRONTEND_URL`             | Sí        | URL del frontend — usada para configurar CORS |
+|----------------------------------------------------------------------------------------|
 
 > *No requeridas para desarrollo local básico, pero necesarias para las funcionalidades de notificaciones, imágenes y pagos.
 
 ---
-
-## Proyecto académico
-
-**Materia:** Prácticas Profesionalizantes III — Ciclo Lectivo 2026
-
-**Institución:** Instituto de Educación Superior "Juan Mantovani"
-
-**Profesor:** Paszco, Gustavo
-
-**Alumnos:**
-
-- Ferreyra, Ricardo Alcides
-- Vargas, Alejandro Gabriel
