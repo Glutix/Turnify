@@ -1,0 +1,13 @@
+{
+  "recommendations": [
+    // Formato y linting
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    // Tailwind
+    "bradlc.vscode-tailwindcss",
+    // Prisma
+    "Prisma.prisma",
+    // Íconos (recomendado)
+    "PKief.material-icon-theme"
+  ]
+}

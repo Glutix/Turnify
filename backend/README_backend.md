@@ -6,15 +6,15 @@ API REST del sistema de gestión integral para salón de belleza, desarrollada c
 
 ## Tecnologías
 
-| Tecnología | Versión | Uso |
-|---|---|---|
-| Node.js | v18+ | Entorno de ejecución |
-| NestJS | v11+ | Framework principal |
-| TypeScript | v5+ | Lenguaje de programación |
-| Prisma | v7+ | ORM y migraciones |
-| PostgreSQL | v15+ | Base de datos relacional |
-| pnpm | v8+ | Gestor de paquetes |
-| Swagger | @nestjs/swagger | Documentación interactiva de la API |
+| Tecnología | Versión         | Uso                                 |
+| ---------- | --------------- | ----------------------------------- |
+| Node.js    | v18+            | Entorno de ejecución                |
+| NestJS     | v11+            | Framework principal                 |
+| TypeScript | v5+             | Lenguaje de programación            |
+| Prisma     | v7+             | ORM y migraciones                   |
+| PostgreSQL | v15+            | Base de datos relacional            |
+| pnpm       | v8+             | Gestor de paquetes                  |
+| Swagger    | @nestjs/swagger | Documentación interactiva de la API |
 
 ---
 
@@ -82,6 +82,9 @@ CLOUDINARY_API_SECRET=""
 
 # ─── MERCADOPAGO ─────────────────────────────────────────────
 MERCADOPAGO_ACCESS_TOKEN=""
+
+# ─── CORS ────────────────────────────────────────────────────
+FRONTEND_URL="http://localhost:5173"
 ```
 
 > ⚠️ El archivo `.env` está incluido en el `.gitignore` y nunca debe subirse al repositorio. Las credenciales reales se comparten entre el equipo de forma privada.
@@ -168,6 +171,7 @@ Swagger permite explorar y probar todos los endpoints del sistema directamente d
 **1. Explorar endpoints:** cada módulo agrupa sus rutas (Usuarios, Turnos, Servicios, etc.) con sus métodos HTTP, parámetros y ejemplos de respuesta.
 
 **2. Probar un endpoint:**
+
 - Hacé click en el endpoint que querés probar
 - Hacé click en **Try it out**
 - Completá los parámetros o el body requerido
@@ -175,6 +179,7 @@ Swagger permite explorar y probar todos los endpoints del sistema directamente d
 - Swagger muestra la respuesta real del servidor
 
 **3. Autenticación con JWT:** para probar endpoints protegidos:
+
 - Primero obtené un token usando el endpoint de login en el módulo `auth`
 - Hacé click en el botón **Authorize** (candado) en la parte superior
 - Pegá el token en el campo `Bearer Token`
@@ -305,28 +310,36 @@ modulo/
 
 ---
 
+## CORS
+
+El backend tiene CORS configurado para aceptar requests únicamente desde el origen definido en `FRONTEND_URL`. En desarrollo local el valor es `http://localhost:5173`.
+
+Si el frontend corre en un puerto distinto o en producción desde otra URL, actualizá esa variable de entorno y reiniciá el servidor.
+
+---
+
 ## Comandos de referencia
 
 ### NestJS
 
-| Comando | Descripción |
-|---|---|
-| `pnpm run start:dev` | Inicia en modo desarrollo con hot reload |
-| `pnpm run start:prod` | Inicia en modo producción |
-| `pnpm run build` | Compila TypeScript a JavaScript |
-| `pnpm run test` | Ejecuta los tests unitarios |
-| `pnpm run test:e2e` | Ejecuta los tests end-to-end |
-| `pnpm run test:cov` | Ejecuta los tests con reporte de cobertura |
+| Comando               | Descripción                                |
+| --------------------- | ------------------------------------------ |
+| `pnpm run start:dev`  | Inicia en modo desarrollo con hot reload   |
+| `pnpm run start:prod` | Inicia en modo producción                  |
+| `pnpm run build`      | Compila TypeScript a JavaScript            |
+| `pnpm run test`       | Ejecuta los tests unitarios                |
+| `pnpm run test:e2e`   | Ejecuta los tests end-to-end               |
+| `pnpm run test:cov`   | Ejecuta los tests con reporte de cobertura |
 
 ### Prisma
 
-| Comando | Descripción |
-|---|---|
-| `pnpm dlx prisma generate` | Genera el cliente TypeScript desde el schema |
-| `pnpm dlx prisma migrate dev --name nombre` | Crea y aplica una nueva migración en desarrollo |
-| `pnpm dlx prisma migrate deploy` | Aplica migraciones pendientes |
-| `pnpm dlx prisma migrate reset` | Resetea la base de datos y aplica todo desde cero |
-| `pnpm dlx prisma studio` | Abre interfaz visual para explorar la base de datos |
+| Comando                                     | Descripción                                         |
+| ------------------------------------------- | --------------------------------------------------- |
+| `pnpm dlx prisma generate`                  | Genera el cliente TypeScript desde el schema        |
+| `pnpm dlx prisma migrate dev --name nombre` | Crea y aplica una nueva migración en desarrollo     |
+| `pnpm dlx prisma migrate deploy`            | Aplica migraciones pendientes                       |
+| `pnpm dlx prisma migrate reset`             | Resetea la base de datos y aplica todo desde cero   |
+| `pnpm dlx prisma studio`                    | Abre interfaz visual para explorar la base de datos |
 
 > ⚠️ `prisma migrate reset` borra todos los datos. Usarlo solo en desarrollo.
 
@@ -347,18 +360,19 @@ Esto aplica las migraciones nuevas y regenera el cliente en tu máquina. Sin est
 
 ## Variables de entorno — referencia completa
 
-| Variable | Requerida | Descripción |
-|---|---|---|
-| `DATABASE_URL` | Sí | URL de conexión a PostgreSQL |
-| `JWT_SECRET` | Sí | Clave secreta para firmar tokens JWT |
-| `JWT_EXPIRES_IN` | Sí | Duración del token (ej: `7d`, `24h`) |
-| `WHATSAPP_API_URL` | No* | URL base de la WhatsApp Business API |
-| `WHATSAPP_TOKEN` | No* | Token de autenticación de Meta |
-| `WHATSAPP_PHONE_NUMBER_ID` | No* | ID del número de teléfono en Meta |
-| `CLOUDINARY_CLOUD_NAME` | No* | Nombre del cloud en Cloudinary |
-| `CLOUDINARY_API_KEY` | No* | API Key de Cloudinary |
-| `CLOUDINARY_API_SECRET` | No* | API Secret de Cloudinary |
-| `MERCADOPAGO_ACCESS_TOKEN` | No* | Access token de MercadoPago |
+| Variable                   | Requerida | Descripción                                   |
+| -------------------------- | --------- | --------------------------------------------- |
+| `DATABASE_URL`             | Sí        | URL de conexión a PostgreSQL                  |
+| `JWT_SECRET`               | Sí        | Clave secreta para firmar tokens JWT          |
+| `JWT_EXPIRES_IN`           | Sí        | Duración del token (ej: `7d`, `24h`)          |
+| `WHATSAPP_API_URL`         | No*       | URL base de la WhatsApp Business API          |
+| `WHATSAPP_TOKEN`           | No*       | Token de autenticación de Meta                |
+| `WHATSAPP_PHONE_NUMBER_ID` | No*       | ID del número de teléfono en Meta             |
+| `CLOUDINARY_CLOUD_NAME`    | No*       | Nombre del cloud en Cloudinary                |
+| `CLOUDINARY_API_KEY`       | No*       | API Key de Cloudinary                         |
+| `CLOUDINARY_API_SECRET`    | No*       | API Secret de Cloudinary                      |
+| `MERCADOPAGO_ACCESS_TOKEN` | No*       | Access token de MercadoPago                   |
+| `FRONTEND_URL`             | Sí        | URL del frontend — usada para configurar CORS |
 
 > *No requeridas para desarrollo local básico, pero necesarias para las funcionalidades de notificaciones, imágenes y pagos.
 
@@ -373,5 +387,6 @@ Esto aplica las migraciones nuevas y regenera el cliente en tu máquina. Sin est
 **Profesor:** Paszco, Gustavo
 
 **Alumnos:**
+
 - Ferreyra, Ricardo Alcides
 - Vargas, Alejandro Gabriel

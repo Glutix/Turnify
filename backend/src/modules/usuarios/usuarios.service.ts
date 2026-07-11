@@ -3,16 +3,15 @@
 // PrismaService se inyecta automáticamente gracias al decorador @Global()
 // del PrismaModule, sin necesidad de importarlo en UsuariosModule.
 
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { CrearUsuarioDto } from './dto/crear-usuario.dto';
-import { ActualizarUsuarioDto } from './dto/actualizar-usuario.dto';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { CrearUsuarioDto } from "./dto/crear-usuario.dto";
+import { ActualizarUsuarioDto } from "./dto/actualizar-usuario.dto";
+import { PrismaService } from "../../prisma/prisma.service";
 
 @Injectable()
 export class UsuariosService {
-
   // Inyección de dependencias: NestJS instancia PrismaService automáticamente
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   // GET /api/usuarios — Retorna todos los usuarios
   async findAll() {
@@ -66,8 +65,8 @@ export class UsuariosService {
         telefono: dto.telefono,
         email: dto.email,
         direccion: dto.direccion,
-        rol: 'cliente',          // Por defecto siempre es cliente
-        perfil_completo: false,  // Por defecto siempre empieza incompleto
+        rol: "cliente", // Por defecto siempre es cliente
+        perfil_completo: false, // Por defecto siempre empieza incompleto
       },
       select: {
         id: true,

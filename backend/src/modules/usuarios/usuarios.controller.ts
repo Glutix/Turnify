@@ -5,22 +5,26 @@
 
 import {
   Controller,
-  Get, Post, Patch, Delete,
-  Param, Body,
-  ParseIntPipe,           // Convierte el :id de string a number automáticamente
-  HttpCode, HttpStatus,   // Para personalizar el código HTTP de la respuesta
-} from '@nestjs/common';
-import { UsuariosService } from './usuarios.service';
-import { CrearUsuarioDto } from './dto/crear-usuario.dto';
-import { ActualizarUsuarioDto } from './dto/actualizar-usuario.dto';
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  ParseIntPipe, // Convierte el :id de string a number automáticamente
+  HttpCode,
+  HttpStatus, // Para personalizar el código HTTP de la respuesta
+} from "@nestjs/common";
+import { UsuariosService } from "./usuarios.service";
+import { CrearUsuarioDto } from "./dto/crear-usuario.dto";
+import { ActualizarUsuarioDto } from "./dto/actualizar-usuario.dto";
 
 // El prefijo 'usuarios' se aplica a todas las rutas de este controller.
 // Es decir: GET /usuarios, POST /usuarios, GET /usuarios/:id, etc.
-@Controller('usuarios')
+@Controller("usuarios")
 export class UsuariosController {
-
   // NestJS inyecta el Service automáticamente gracias al decorador @Injectable()
-  constructor(private readonly usuariosService: UsuariosService) { }
+  constructor(private readonly usuariosService: UsuariosService) {}
 
   // GET /usuarios
   // Retorna todos los usuarios. HTTP 200 por defecto.
@@ -32,8 +36,8 @@ export class UsuariosController {
   // GET /usuarios/:id
   // ParseIntPipe convierte el parámetro :id de string a number.
   // Si no es un número válido, NestJS retorna 400 automáticamente.
-  @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
+  @Get(":id")
+  findOne(@Param("id", ParseIntPipe) id: number) {
     return this.usuariosService.findOne(id);
   }
 
@@ -48,17 +52,17 @@ export class UsuariosController {
   // PATCH /usuarios/:id
   // Actualización parcial: solo actualiza los campos que lleguen en el body.
   // Usar PATCH en lugar de PUT para actualizaciones parciales.
-  @Patch(':id')
+  @Patch(":id")
   update(
-    @Param('id', ParseIntPipe) id: number,
+    @Param("id", ParseIntPipe) id: number,
     @Body() dto: ActualizarUsuarioDto,
   ) {
     return this.usuariosService.update(id, dto);
   }
 
   // DELETE /usuarios/:id
-  @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
+  @Delete(":id")
+  remove(@Param("id", ParseIntPipe) id: number) {
     return this.usuariosService.remove(id);
   }
 }
