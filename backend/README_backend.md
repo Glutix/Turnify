@@ -362,6 +362,7 @@ Esto aplica las migraciones nuevas y regenera el cliente en tu máquina. Sin est
 ---
 
 ## Variables de entorno — referencia completa
+
 | Variable                   | Requerida | Descripción                                   |
 | -------------------------- | --------- | --------------------------------------------- |
 | `DATABASE_URL`             | Sí        | URL de conexión a PostgreSQL                  |
