@@ -6,17 +6,17 @@ Interfaz web del sistema de gestión integral para salón de belleza, desarrolla
 
 ## Tecnologías
 
-| Tecnología | Versión | Uso |
-|---|---|---|
-| React | v19+ | Biblioteca de interfaz de usuario |
-| Vite | v6+ | Entorno de desarrollo y build |
-| TypeScript | v5+ | Tipado estático |
-| Tailwind CSS | v4+ | Estilos y diseño responsive |
-| React Router | v7+ | Navegación entre páginas |
-| TanStack Query | v5+ | Gestión de datos del servidor |
-| Zustand | v5+ | Estado global de la aplicación |
-| Axios | v1+ | Llamadas HTTP a la API REST |
-| pnpm | v8+ | Gestor de paquetes |
+| Tecnología     | Versión | Uso                               |
+| -------------- | ------- | --------------------------------- |
+| React          | v19+    | Biblioteca de interfaz de usuario |
+| Vite           | v6+     | Entorno de desarrollo y build     |
+| TypeScript     | v5+     | Tipado estático                   |
+| Tailwind CSS   | v4+     | Estilos y diseño responsive       |
+| React Router   | v7+     | Navegación entre páginas          |
+| TanStack Query | v5+     | Gestión de datos del servidor     |
+| Zustand        | v5+     | Estado global de la aplicación    |
+| Axios          | v1+     | Llamadas HTTP a la API REST       |
+| pnpm           | v8+     | Gestor de paquetes                |
 
 ---
 
@@ -107,32 +107,32 @@ pnpm run preview
 
 ### Sitio público
 
-| Ruta | Página | Descripción |
-|---|---|---|
-| `/` | LandingPage | Página principal del sitio |
-| `/servicios` | ServiciosPage | Catálogo de servicios y precios |
+| Ruta          | Página         | Descripción                      |
+| ------------- | -------------- | -------------------------------- |
+| `/`           | LandingPage    | Página principal del sitio       |
+| `/servicios`  | ServiciosPage  | Catálogo de servicios y precios  |
 | `/portafolio` | PortafolioPage | Portafolio de trabajos del salón |
-| `/turnos` | TurnosPage | Reserva de turnos online |
-| `/login` | LoginPage | Inicio de sesión |
+| `/turnos`     | TurnosPage     | Reserva de turnos online         |
+| `/login`      | LoginPage      | Inicio de sesión                 |
 
 ### Panel de administración (protegido)
 
-| Ruta | Página | Descripción |
-|---|---|---|
-| `/admin` | AgendaPage | Agenda principal del salón |
-| `/admin/turnos` | TurnosAdminPage | Gestión de turnos |
-| `/admin/servicios` | ServiciosAdminPage | Gestión de servicios |
-| `/admin/horarios` | HorariosAdminPage | Gestión de franjas horarias |
-| `/admin/portafolio` | PortafolioAdminPage | Gestión del portafolio |
-| `/admin/productos` | ProductosAdminPage | Gestión de productos |
-| `/admin/pedidos` | PedidosAdminPage | Gestión de pedidos |
-| `/admin/clientes` | ClientesAdminPage | Historial de clientes |
+| Ruta                | Página              | Descripción                 |
+| ------------------- | ------------------- | --------------------------- |
+| `/admin`            | AgendaPage          | Agenda principal del salón  |
+| `/admin/turnos`     | TurnosAdminPage     | Gestión de turnos           |
+| `/admin/servicios`  | ServiciosAdminPage  | Gestión de servicios        |
+| `/admin/horarios`   | HorariosAdminPage   | Gestión de franjas horarias |
+| `/admin/portafolio` | PortafolioAdminPage | Gestión del portafolio      |
+| `/admin/productos`  | ProductosAdminPage  | Gestión de productos        |
+| `/admin/pedidos`    | PedidosAdminPage    | Gestión de pedidos          |
+| `/admin/clientes`   | ClientesAdminPage   | Historial de clientes       |
 
 ### Rutas especiales
 
-| Ruta | Descripción |
-|---|---|
-| `*` | Redirige a la página 404 |
+| Ruta | Descripción              |
+| ---- | ------------------------ |
+| `*`  | Redirige a la página 404 |
 
 > Las rutas `/admin/*` requieren autenticación con rol `admin`. Si el usuario no está autenticado, es redirigido automáticamente a `/login`.
 
@@ -232,29 +232,33 @@ Componente que verifica si el usuario está autenticado antes de renderizar una 
 
 ## Comandos de referencia
 
-| Comando | Descripción |
-|---|---|
-| `pnpm run dev` | Inicia el servidor de desarrollo con hot reload |
-| `pnpm run build` | Genera el build de producción en `dist/` |
-| `pnpm run preview` | Previsualiza el build de producción localmente |
-| `pnpm run lint` | Ejecuta ESLint sobre todos los archivos del proyecto |
+| Comando            | Descripción                                          |
+| ------------------ | ---------------------------------------------------- |
+| `pnpm run dev`     | Inicia el servidor de desarrollo con hot reload      |
+| `pnpm run build`   | Genera el build de producción en `dist/`             |
+| `pnpm run preview` | Previsualiza el build de producción localmente       |
+| `pnpm run lint`    | Ejecuta ESLint sobre todos los archivos del proyecto |
 
 ---
 
 ## Convenciones del proyecto
 
 ### Nombres de archivos
+
 - Componentes y páginas: `PascalCase` → `AgendaPage.tsx`, `ProtectedRoute.tsx`
 - Stores, hooks y utilidades: `camelCase` → `authStore.ts`, `useAuth.ts`
 
 ### Imports
+
 - Usar rutas relativas desde `src/` → `"../stores/authStore"`
 
 ### Estilos
+
 - Usar clases de Tailwind CSS directamente en el JSX
 - No crear archivos CSS adicionales salvo casos excepcionales
 
 ### Formato de código
+
 - Comillas dobles `"` para todos los strings
 - Punto y coma `;` al final de cada sentencia
 - El autoformato se aplica al guardar mediante Prettier
@@ -263,8 +267,8 @@ Componente que verifica si el usuario está autenticado antes de renderizar una 
 
 ## Variables de entorno — referencia completa
 
-| Variable | Requerida | Descripción |
-|---|---|---|
-| `VITE_API_URL` | Sí | URL base de la API REST del backend |
+| Variable       | Requerida | Descripción                         |
+| -------------- | --------- | ----------------------------------- |
+| `VITE_API_URL` | Sí        | URL base de la API REST del backend |
 
 > En producción actualizá `VITE_API_URL` con la URL real del backend desplegado.

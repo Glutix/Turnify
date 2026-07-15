@@ -15,5 +15,7 @@
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   // ─── ÍCONOS (recomendado para el proyecto) ───────────────────
-  "material-icon-theme.activeIconPack": "nest"
+  "material-icon-theme.activeIconPack": "nest",
+  // ─── FIN DE LÍNEA ────────────────────────────────────────
+  "files.eol": "\n"
 }

@@ -1,5 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "./ProtectedRoute";
+import { PublicLayout } from "../components/layout/PublicLayout";
 
 // Páginas públicas
 import { LandingPage } from "../pages/public/LandingPage";
@@ -22,12 +23,14 @@ import { ClientesAdminPage } from "../pages/admin/ClientesAdminPage";
 export function AppRouter() {
   return (
     <Routes>
-      {/* ─── RUTAS PÚBLICAS ─────────────────────────────────── */}
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/servicios" element={<ServiciosPage />} />
-      <Route path="/portafolio" element={<PortafolioPage />} />
-      <Route path="/turnos" element={<TurnosPage />} />
-      <Route path="/login" element={<LoginPage />} />
+      {/* ─── RUTAS PÚBLICAS CON LAYOUT ──────────────────────── */}
+      <Route element={<PublicLayout />}>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/servicios" element={<ServiciosPage />} />
+        <Route path="/portafolio" element={<PortafolioPage />} />
+        <Route path="/turnos" element={<TurnosPage />} />
+        <Route path="/login" element={<LoginPage />} />
+      </Route>
 
       {/* ─── RUTAS PROTEGIDAS (solo admin) ──────────────────── */}
       <Route

@@ -31,8 +31,8 @@ export default tseslint.config(
         { allowConstantExport: true },
       ],
       "prettier/prettier": "error",
-      "quotes": ["error", "double"],
-      "semi": ["error", "always"],
+      quotes: ["error", "double"],
+      semi: ["error", "always"],
     },
   },
 );

@@ -1,4 +1,7 @@
-// LandingPage.tsx
 export function LandingPage() {
-  return <div>Landing Page</div>;
+  return (
+    <div className="p-4">
+      <h1 className="text-2xl font-bold text-primary">Inicio</h1>
+    </div>
+  );
 }
