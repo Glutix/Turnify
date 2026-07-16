@@ -1,4 +1,6 @@
-// ServiciosPage.tsx
+import { ComingSoon } from "../../components/common/Comingsoon";
+
+
 export function ServiciosPage() {
-  return <div>Servicios</div>;
+  return <ComingSoon titulo="Servicios" />;
 }

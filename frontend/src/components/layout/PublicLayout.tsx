@@ -4,12 +4,11 @@ import { Footer } from "./Footer";
 
 export function PublicLayout() {
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="flex min-h-screen flex-col bg-blush font-sans text-espresso">
       <Header />
       <main className="flex-1">
         <Outlet />
       </main>
-
       <Footer />
     </div>
   );

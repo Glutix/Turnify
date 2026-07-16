@@ -29,8 +29,10 @@ export function AppRouter() {
         <Route path="/servicios" element={<ServiciosPage />} />
         <Route path="/portafolio" element={<PortafolioPage />} />
         <Route path="/turnos" element={<TurnosPage />} />
-        <Route path="/login" element={<LoginPage />} />
       </Route>
+
+      {/* ─── LOGIN — pantalla completa, sin layout ──────────── */}
+      <Route path="/login" element={<LoginPage />} />
 
       {/* ─── RUTAS PROTEGIDAS (solo admin) ──────────────────── */}
       <Route

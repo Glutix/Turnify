@@ -1,9 +1,21 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #006d77;
-  --color-primary-light: #83c5be;
-  --color-background: #edf6f9;
-  --color-warm-light: #ffddd2;
-  --color-warm: #e29578;
+  /* ─── COLORES — Paleta Rosewood ───────────────────────── */
+  --color-blush: #fbf1ec;
+  --color-superficie: #ffffff;
+  --color-oro: #c9a15a;
+  --color-rosa: #d98c86;
+  --color-rosewood: #9c4a43;
+  --color-espresso: #3b2a28;
+
+  /* ─── TIPOGRAFÍA ───────────────────────────────────────── */
+  --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-serif: "Fraunces", Georgia, "Times New Roman", serif;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-blush);
+  color: var(--color-espresso);
 }

@@ -1,4 +1,5 @@
-// PortafolioPage.tsx
+import { ComingSoon } from "../../components/common/Comingsoon";
+
 export function PortafolioPage() {
-  return <div>Portafolio</div>;
+  return <ComingSoon titulo="Portafolio" />;
 }

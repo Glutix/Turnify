@@ -1,74 +1,92 @@
 import { NavLink } from "react-router-dom";
-
-const links = [
-  { label: "Inicio", to: "/" },
-  { label: "Servicios", to: "/servicios" },
-  { label: "Portafolio", to: "/portafolio" },
-  { label: "Turnos", to: "/turnos" },
-];
-
-const redes = [
-  { label: "Instagram", href: "https://instagram.com" },
-  { label: "Facebook", href: "https://facebook.com" },
-];
+import {
+  IconInstagram,
+  IconPhone,
+  IconMapPin,
+  IconClock,
+} from "../common/Icons";
 
 export function Footer() {
   return (
-    <footer className="bg-primary text-white mt-auto">
-      {/* ─── CONTENIDO PRINCIPAL ─────────────────────────────── */}
-      <div className="px-4 py-8 flex flex-col gap-6 lg:flex-row lg:justify-between lg:items-start">
+    <footer className="bg-espresso text-blush/80">
+      <div className="mx-auto grid max-w-6xl gap-12 px-6 py-16 md:grid-cols-3">
         {/* Marca */}
-        <div className="flex flex-col gap-1">
-          <span className="text-xl font-bold">✂ Turnify</span>
-          <span className="text-sm text-white/70">
-            Salón de belleza integral
-          </span>
-          <span className="text-sm text-white/70 mt-1">
-            📍 Dirección del salón
-          </span>
+        <div>
+          <p className="font-serif text-2xl text-blush">
+            Turni<span className="italic text-oro">fy</span>
+          </p>
+          <p className="mt-4 max-w-xs text-sm leading-relaxed text-blush/60">
+            Belleza y bienestar en un solo lugar. Reservá tu turno online y
+            descubrí nuestros servicios sin salir de casa.
+          </p>
         </div>
 
-        {/* Links — solo desktop */}
-        <div className="hidden lg:flex flex-col gap-2">
-          <span className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-1">
+        {/* Navegación */}
+        <div>
+          <p className="mb-4 text-xs uppercase tracking-widest text-oro">
             Navegación
-          </span>
-          {links.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              className="text-sm text-white/80 hover:text-warm-light transition-colors"
-            >
-              {link.label}
-            </NavLink>
-          ))}
+          </p>
+          <ul className="space-y-3 text-sm">
+            <li>
+              <NavLink to="/" className="transition-colors hover:text-oro">
+                Inicio
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="/servicios"
+                className="transition-colors hover:text-oro"
+              >
+                Servicios
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="/portafolio"
+                className="transition-colors hover:text-oro"
+              >
+                Portafolio
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="/turnos"
+                className="transition-colors hover:text-oro"
+              >
+                Reservar turno
+              </NavLink>
+            </li>
+          </ul>
         </div>
 
-        {/* Redes sociales */}
-        <div className="flex flex-col gap-2">
-          <span className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-1">
-            Redes sociales
-          </span>
-          {redes.map((red) => (
-            <a
-              key={red.label}
-              href={red.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm
-              text-white/80 hover:text-warm-light transition-colors"
-            >
-              {red.label}
-            </a>
-          ))}
+        {/* Contacto */}
+        <div>
+          <p className="mb-4 text-xs uppercase tracking-widest text-oro">
+            Contacto
+          </p>
+          <ul className="space-y-3 text-sm text-blush/70">
+            <li className="flex items-center gap-2">
+              <IconMapPin size={16} className="shrink-0 text-oro" />
+              Presidencia Roque Sáenz Peña, Chaco
+            </li>
+            <li className="flex items-center gap-2">
+              <IconClock size={16} className="shrink-0 text-oro" />
+              Lun a Sáb · 9 a 12 y 16:30 a 20:30
+            </li>
+            <li className="flex items-center gap-2">
+              <IconPhone size={16} className="shrink-0 text-oro" />
+              +54 9 3644 000-000
+            </li>
+            <li className="flex items-center gap-2">
+              <IconInstagram size={16} className="shrink-0 text-oro" />
+              @turnify.salon
+            </li>
+          </ul>
         </div>
       </div>
 
-      {/* ─── COPYRIGHT ───────────────────────────────────────── */}
-      <div className="border-t border-white/10 px-4 py-3 text-center">
-        <span className="text-xs text-white/50">
-          © 2026 Turnify. Todos los derechos reservados.
-        </span>
+      <div className="border-t border-blush/10 px-6 py-6 text-center text-xs text-blush/50">
+        © {new Date().getFullYear()} Turnify. Todos los derechos reservados.
       </div>
     </footer>
   );

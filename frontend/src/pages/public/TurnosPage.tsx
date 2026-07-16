@@ -1,4 +1,5 @@
-// TurnosPage.tsx
+import { ComingSoon } from "../../components/common/Comingsoon";
+
 export function TurnosPage() {
-  return <div>Reserva de Turnos</div>;
+  return <ComingSoon titulo="Turnos" />;
 }
