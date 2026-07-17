@@ -301,3 +301,16 @@ model Notificacion {
 
   @@map("notificaciones")
 }
+
+model OtpVerificacion {
+  id             Int      @id @default(autoincrement())
+  telefono       String   @db.VarChar(20)
+  codigo_hash    String   @db.VarChar(255)
+  intentos       Int      @default(0)
+  verificado     Boolean  @default(false)
+  expira_en      DateTime @db.Timestamp()
+  fecha_creacion DateTime @default(now()) @db.Timestamp()
+
+  @@index([telefono])
+  @@map("otp_verificaciones")
+}
