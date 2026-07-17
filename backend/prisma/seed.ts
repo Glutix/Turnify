@@ -2,6 +2,9 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import "dotenv/config";
 
+console.log("Console 1 >", process.cwd());
+console.log("Console 1 >", process.env.DATABASE_URL);
+
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
@@ -19,7 +22,11 @@ async function main() {
         { nombre: "Microblading", duracion_minutos: 100, precio: 45000 },
         { nombre: "Powder Brow", duracion_minutos: 120, precio: 50000 },
         { nombre: "Hybrid Brows", duracion_minutos: 120, precio: 52000 },
-        { nombre: "Pigmentación de labios", duracion_minutos: 120, precio: 55000 },
+        {
+          nombre: "Pigmentación de labios",
+          duracion_minutos: 120,
+          precio: 55000,
+        },
       ],
     },
     {
@@ -36,7 +43,11 @@ async function main() {
       nombre: "Uñas",
       descripcion: "Manicura y técnicas de uñas esculpidas",
       servicios: [
-        { nombre: "Esmaltado semipermanente", duracion_minutos: 45, precio: 12000 },
+        {
+          nombre: "Esmaltado semipermanente",
+          duracion_minutos: 45,
+          precio: 12000,
+        },
         { nombre: "Capping", duracion_minutos: 75, precio: 18000 },
         { nombre: "Soft gel", duracion_minutos: 140, precio: 25000 },
         { nombre: "Poligel", duracion_minutos: 120, precio: 26000 },
@@ -46,8 +57,16 @@ async function main() {
       nombre: "Podoestética",
       descripcion: "Cuidado y esmaltado de pies",
       servicios: [
-        { nombre: "Esmaltado tradicional (pies)", duracion_minutos: 45, precio: 9000 },
-        { nombre: "Esmaltado semipermanente (pies)", duracion_minutos: 45, precio: 13000 },
+        {
+          nombre: "Esmaltado tradicional (pies)",
+          duracion_minutos: 45,
+          precio: 9000,
+        },
+        {
+          nombre: "Esmaltado semipermanente (pies)",
+          duracion_minutos: 45,
+          precio: 13000,
+        },
       ],
     },
     {

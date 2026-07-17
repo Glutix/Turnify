@@ -1,3 +1,4 @@
+// frontend\src\pages\admin\ServiciosAdminPage.tsx
 import { useState } from "react";
 import { isAxiosError } from "axios";
 import { Table } from "../../components/common/Table";

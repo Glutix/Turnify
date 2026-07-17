@@ -34,7 +34,7 @@ export function CodeStep({
       </button>
 
       <p className="text-sm leading-relaxed text-espresso/70">
-        Te enviamos un código de verificación por SMS al{" "}
+        Te enviamos un código de verificación por WhatsApp al{" "}
         <span className="font-semibold text-espresso">{telefono}</span>. Revisá
         tus mensajes.
       </p>

@@ -14,8 +14,8 @@ import {
   ParseIntPipe, // Convierte el :id de string a number automáticamente
 } from "@nestjs/common";
 import { CategoriasServicioService } from "./categorias-servicio.service";
-import { CrearCategoriaDto } from "./dto/crear-categoria.dto";
-import { ActualizarCategoriaDto } from "./dto/actualizar-categoria.dto";
+import { type CrearCategoriaDto } from "./dto/crear-categoria.dto";
+import { type ActualizarCategoriaDto } from "./dto/actualizar-categoria.dto";
 
 // El prefijo 'categorias-servicio' se aplica a todas las rutas de este controller.
 @Controller("categorias-servicio")

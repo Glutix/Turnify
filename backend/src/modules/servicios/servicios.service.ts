@@ -6,8 +6,8 @@
 // importa CategoriasServicioModule.
 
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { CrearServicioDto } from "./dto/crear-servicio.dto";
-import { ActualizarServicioDto } from "./dto/actualizar-servicio.dto";
+import { type CrearServicioDto } from "./dto/crear-servicio.dto";
+import { type ActualizarServicioDto } from "./dto/actualizar-servicio.dto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CategoriasServicioService } from "../categorias-servicio/categorias-servicio.service";
 

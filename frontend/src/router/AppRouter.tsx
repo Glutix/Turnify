@@ -2,15 +2,13 @@ import { Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { PublicLayout } from "../components/layout/PublicLayout";
 
-// Páginas públicas
 import { LandingPage } from "../pages/public/LandingPage";
-import { ServiciosPage } from "../pages/public/ServiciosPage";
+import { ServiciosRouterPage } from "../pages/public/ServiciosRouterPage";
 import { PortafolioPage } from "../pages/public/PortafolioPage";
 import { TurnosPage } from "../pages/public/TurnosPage";
 import { LoginPage } from "../pages/public/LoginPage";
 import { NotFoundPage } from "../pages/public/NotFoundPage";
 
-// Páginas del panel admin
 import { AgendaPage } from "../pages/admin/AgendaPage";
 import { TurnosAdminPage } from "../pages/admin/TurnosAdminPage";
 import { ServiciosAdminPage } from "../pages/admin/ServiciosAdminPage";
@@ -23,18 +21,21 @@ import { ClientesAdminPage } from "../pages/admin/ClientesAdminPage";
 export function AppRouter() {
   return (
     <Routes>
-      {/* ─── RUTAS PÚBLICAS CON LAYOUT ──────────────────────── */}
+      {/* PUBLICAS */}
       <Route element={<PublicLayout />}>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/servicios" element={<ServiciosPage />} />
+
+        <Route path="/servicios" element={<ServiciosRouterPage />} />
+
         <Route path="/portafolio" element={<PortafolioPage />} />
+
         <Route path="/turnos" element={<TurnosPage />} />
       </Route>
 
-      {/* ─── LOGIN — pantalla completa, sin layout ──────────── */}
+      {/* LOGIN */}
       <Route path="/login" element={<LoginPage />} />
 
-      {/* ─── RUTAS PROTEGIDAS (solo admin) ──────────────────── */}
+      {/* ADMIN */}
       <Route
         path="/admin"
         element={
@@ -43,6 +44,7 @@ export function AppRouter() {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/admin/turnos"
         element={
@@ -51,6 +53,7 @@ export function AppRouter() {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/admin/servicios"
         element={
@@ -59,6 +62,7 @@ export function AppRouter() {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/admin/horarios"
         element={
@@ -67,6 +71,7 @@ export function AppRouter() {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/admin/portafolio"
         element={
@@ -75,6 +80,7 @@ export function AppRouter() {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/admin/productos"
         element={
@@ -83,6 +89,7 @@ export function AppRouter() {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/admin/pedidos"
         element={
@@ -91,6 +98,7 @@ export function AppRouter() {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/admin/clientes"
         element={
@@ -100,7 +108,6 @@ export function AppRouter() {
         }
       />
 
-      {/* ─── RUTA 404 ────────────────────────────────────────── */}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );

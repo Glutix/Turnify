@@ -1,4 +1,4 @@
-import { useAuthStore } from "../../stores/authStore";
+/* import { useAuthStore } from "../../stores/authStore";
 
 export function LoginAdminFalso() {
   const setAuth = useAuthStore((state) => state.setAuth);
@@ -20,4 +20,4 @@ export function LoginAdminFalso() {
       Entrar como administrador
     </button>
   );
-}
+} */

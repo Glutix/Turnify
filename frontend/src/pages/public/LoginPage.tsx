@@ -1,33 +1,101 @@
-/*import { useState, type FormEvent } from "react";
-import { NavLink } from "react-router-dom";
+import { useState, type FormEvent } from "react";
+
+import { NavLink, useNavigate } from "react-router-dom";
+
 import { PhoneStep } from "../../components/auth/PhoneStep";
 import { CodeStep } from "../../components/auth/CodeStep";
 import { CredentialsStep } from "../../components/auth/CredentialsStep";
+import { RegisterStep } from "../../components/auth/RegisterStep";
 
-type LoginStep = "telefono" | "codigo" | "credenciales";
+import api from "../../api/axios";
+import { useAuthStore } from "../../stores/authStore";
+
+type LoginStep = "telefono" | "codigo" | "registro" | "credenciales";
 
 export function LoginPage() {
+  const navigate = useNavigate();
+
+  const setAuth = useAuthStore((state) => state.setAuth);
+
   const [step, setStep] = useState<LoginStep>("telefono");
 
   const [telefono, setTelefono] = useState("");
+
   const [codigo, setCodigo] = useState("");
+
   const [identificador, setIdentificador] = useState("");
+
   const [contrasena, setContrasena] = useState("");
 
-  function handleSubmitTelefono(e: FormEvent) {
+  async function handleSubmitTelefono(e: FormEvent) {
     e.preventDefault();
-    // TODO: reemplazar por la llamada real a la API que envía el SMS
-    setStep("codigo");
+
+    try {
+      await api.post("/auth/solicitar-codigo", {
+        telefono,
+      });
+
+      setStep("codigo");
+    } catch (error) {
+      console.error("Error enviando OTP", error);
+    }
   }
 
-  function handleSubmitCodigo(e: FormEvent) {
+  async function handleSubmitCodigo(e: FormEvent) {
     e.preventDefault();
-    // TODO: reemplazar por la llamada real a la API que verifica el código
+
+    try {
+      const response = await api.post("/auth/validar-codigo", {
+        telefono,
+        codigo,
+      });
+
+      const data = response.data;
+
+      console.log("Respuesta OTP:", data);
+
+      if (data.requiereRegistro) {
+        setStep("registro");
+
+        return;
+      }
+
+      setAuth(data.usuario, data.token);
+
+      navigate("/");
+    } catch (error) {
+      console.error("Error validando código", error);
+    }
+  }
+
+  async function handleRegistro(
+    e: FormEvent,
+    nombre: string,
+    apellido: string,
+  ) {
+    e.preventDefault();
+
+    try {
+      const response = await api.post("/auth/registro", {
+        telefono,
+        nombre,
+        apellido,
+      });
+
+      const data = response.data;
+
+      setAuth(data.usuario, data.token);
+
+      navigate("/");
+    } catch (error) {
+      console.error("Error registrando usuario", error);
+    }
   }
 
   function handleSubmitCredenciales(e: FormEvent) {
     e.preventDefault();
-    // TODO: reemplazar por la llamada real a la API de login con usuario/contraseña
+
+    console.log("Login con usuario/contraseña pendiente");
   }
 
   return (
@@ -38,8 +106,10 @@ export function LoginPage() {
             to="/"
             className="rounded-sm font-serif text-3xl font-medium tracking-wide text-espresso"
           >
-            Turni<span className="italic text-rosewood">fy</span>
+            Turni
+            <span className="italic text-rosewood">fy</span>
           </NavLink>
+
           <p className="mt-2 text-sm text-espresso/60">
             {step === "credenciales"
               ? "Ingresá con tu usuario y contraseña"
@@ -51,8 +121,11 @@ export function LoginPage() {
           {step === "telefono" && (
             <PhoneStep
               telefono={telefono}
+
               onTelefonoChange={setTelefono}
+
               onSubmit={handleSubmitTelefono}
+
               onIrACredenciales={() => setStep("credenciales")}
             />
           )}
@@ -60,20 +133,37 @@ export function LoginPage() {
           {step === "codigo" && (
             <CodeStep
               telefono={telefono}
+
               codigo={codigo}
+
               onCodigoChange={setCodigo}
+
               onSubmit={handleSubmitCodigo}
+
               onVolver={() => setStep("telefono")}
+            />
+          )}
+
+          {step === "registro" && (
+            <RegisterStep
+              telefono={telefono}
+
+              onSubmit={handleRegistro}
             />
           )}
 
           {step === "credenciales" && (
             <CredentialsStep
               identificador={identificador}
+
               onIdentificadorChange={setIdentificador}
+
               contrasena={contrasena}
+
               onContrasenaChange={setContrasena}
+
               onSubmit={handleSubmitCredenciales}
+
               onIrATelefono={() => setStep("telefono")}
             />
           )}
@@ -84,29 +174,5 @@ export function LoginPage() {
         </p>
       </div>
     </div>
-  );
-}
-*/
-import { useAuthStore } from "../../stores/authStore";
-
-export function LoginPage() {
-  const setAuth = useAuthStore((state) => state.setAuth);
-
-  function entrarComoAdmin() {
-    setAuth(
-      {
-        id: 1,
-        nombre: "Administrador",
-        rol: "admin",
-        perfil_completo: true,
-      },
-      "token-prueba-admin",
-    );
-  }
-
-  return (
-    <button onClick={entrarComoAdmin}>
-      Entrar como administrador
-    </button>
   );
 }

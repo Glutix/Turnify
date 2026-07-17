@@ -1,5 +1,7 @@
 allowBuilds:
   "@prisma/engines": true
   "@scarf/scarf": true
+  "@whiskeysockets/baileys": false
   prisma: true
+  protobufjs: false
   unrs-resolver: false

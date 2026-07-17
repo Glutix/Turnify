@@ -1,9 +1,11 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-interface Usuario {
+export interface Usuario {
   id: number;
   nombre: string;
+  apellido?: string;
+  telefono: string;
   rol: "cliente" | "admin";
   perfil_completo: boolean;
 }
@@ -11,7 +13,9 @@ interface Usuario {
 interface AuthStore {
   usuario: Usuario | null;
   token: string | null;
+
   setAuth: (usuario: Usuario, token: string) => void;
+
   logout: () => void;
 }
 
@@ -20,8 +24,18 @@ export const useAuthStore = create<AuthStore>()(
     (set) => ({
       usuario: null,
       token: null,
-      setAuth: (usuario, token) => set({ usuario, token }),
-      logout: () => set({ usuario: null, token: null }),
+
+      setAuth: (usuario, token) =>
+        set({
+          usuario,
+          token,
+        }),
+
+      logout: () =>
+        set({
+          usuario: null,
+          token: null,
+        }),
     }),
     {
       name: "auth-storage",

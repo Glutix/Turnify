@@ -1,3 +1,4 @@
+// eslint.config.ts
 import { defineConfig } from "eslint/config";
 import js from "@eslint/js";
 import globals from "globals";
@@ -39,6 +40,14 @@ export default defineConfig([
           fixStyle: "inline-type-imports",
         },
       ],
+    },
+  },
+
+  // Excepción para NestJS: clases inyectadas por DI
+  {
+    files: ["**/*.service.ts", "**/*.module.ts", "**/*.controller.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-imports": "off",
     },
   },
 ]);

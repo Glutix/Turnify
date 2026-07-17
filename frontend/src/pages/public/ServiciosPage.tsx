@@ -1,3 +1,4 @@
+// frontend\src\pages\public\ServiciosPage.tsx
 import { useServicios } from "../../hooks/useServicios";
 import { formatearDuracion, formatearPrecio } from "../../utils/servicio";
 import type { Servicio } from "../../types/servicio";

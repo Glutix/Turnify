@@ -24,7 +24,7 @@ import { CategoriasServicioModule } from "./modules/categorias-servicio/categori
     PedidosModule,
     NotificacionesModule,
     PrismaModule,
-    CategoriasServicioModule
+    CategoriasServicioModule,
   ],
   controllers: [AppController],
   providers: [AppService],
