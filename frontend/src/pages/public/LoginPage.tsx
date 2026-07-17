@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+/*import { useState, type FormEvent } from "react";
 import { NavLink } from "react-router-dom";
 import { PhoneStep } from "../../components/auth/PhoneStep";
 import { CodeStep } from "../../components/auth/CodeStep";
@@ -84,5 +84,29 @@ export function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+*/
+import { useAuthStore } from "../../stores/authStore";
+
+export function LoginPage() {
+  const setAuth = useAuthStore((state) => state.setAuth);
+
+  function entrarComoAdmin() {
+    setAuth(
+      {
+        id: 1,
+        nombre: "Administrador",
+        rol: "admin",
+        perfil_completo: true,
+      },
+      "token-prueba-admin",
+    );
+  }
+
+  return (
+    <button onClick={entrarComoAdmin}>
+      Entrar como administrador
+    </button>
   );
 }

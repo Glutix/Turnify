@@ -4,9 +4,9 @@
 // del PrismaModule, sin necesidad de importarlo en UsuariosModule.
 
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { type CrearUsuarioDto } from "./dto/crear-usuario.dto";
-import { type ActualizarUsuarioDto } from "./dto/actualizar-usuario.dto";
-import { type PrismaService } from "../../prisma/prisma.service";
+import { CrearUsuarioDto } from "./dto/crear-usuario.dto";
+import { ActualizarUsuarioDto } from "./dto/actualizar-usuario.dto";
+import { PrismaService } from "../../prisma/prisma.service";
 
 @Injectable()
 export class UsuariosService {

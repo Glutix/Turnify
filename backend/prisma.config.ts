@@ -7,6 +7,7 @@ export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
+  seed: "node --experimental-strip-types prisma/seed.ts", // esta linea se puede borrar si no se quiere usar el seed, o se puede cambiar a otro comando que ejecute el seed
   },
   datasource: {
     url: process.env["DATABASE_URL"],
