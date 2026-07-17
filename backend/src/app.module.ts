@@ -11,7 +11,7 @@ import { ProductosModule } from "./modules/productos/productos.module";
 import { PedidosModule } from "./modules/pedidos/pedidos.module";
 import { NotificacionesModule } from "./modules/notificaciones/notificaciones.module";
 import { PrismaModule } from "./prisma/prisma.module";
-
+import { CategoriasServicioModule } from "./modules/categorias-servicio/categorias-servicio.module";
 @Module({
   imports: [
     AuthModule,
@@ -24,6 +24,7 @@ import { PrismaModule } from "./prisma/prisma.module";
     PedidosModule,
     NotificacionesModule,
     PrismaModule,
+    CategoriasServicioModule
   ],
   controllers: [AppController],
   providers: [AppService],

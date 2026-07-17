@@ -120,7 +120,7 @@ model CategoriaServicio {
   id          Int     @id @default(autoincrement())
   nombre      String  @unique @db.VarChar(100)
   descripcion String? @db.VarChar(255)
-
+  
   servicios Servicio[]
 
   @@map("categorias_servicio")

@@ -13,9 +13,9 @@ import {
   Body,
   ParseIntPipe, // Convierte el :id de string a number automáticamente
 } from "@nestjs/common";
-import { type UsuariosService } from "./usuarios.service";
-import { type CrearUsuarioDto } from "./dto/crear-usuario.dto";
-import { type ActualizarUsuarioDto } from "./dto/actualizar-usuario.dto";
+import { UsuariosService } from "./usuarios.service";
+import { CrearUsuarioDto } from "./dto/crear-usuario.dto";
+import { ActualizarUsuarioDto } from "./dto/actualizar-usuario.dto";
 
 // El prefijo 'usuarios' se aplica a todas las rutas de este controller.
 // Es decir: GET /usuarios, POST /usuarios, GET /usuarios/:id, etc.
