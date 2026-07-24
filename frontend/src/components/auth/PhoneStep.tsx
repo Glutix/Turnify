@@ -8,18 +8,16 @@ interface PhoneStepProps {
   onTelefonoChange: (value: string) => void;
   onSubmit: (e: FormEvent) => void;
   onIrACredenciales: () => void;
+  error?: string;
+  isLoading?: boolean;
+  cooldown?: number;
 }
 
-const MAX_DIGITS = 10; // 4 (característica) + 6 (número)
+const MAX_DIGITS = 10;
 
-/** Formatea dígitos crudos al patrón xxxx-xxxxxx usado en Argentina/Chaco. */
 function formatearTelefono(valorCrudo: string): string {
   const soloDigitos = valorCrudo.replace(/\D/g, "").slice(0, MAX_DIGITS);
-
-  if (soloDigitos.length <= 4) {
-    return soloDigitos;
-  }
-
+  if (soloDigitos.length <= 4) return soloDigitos;
   return `${soloDigitos.slice(0, 4)}-${soloDigitos.slice(4)}`;
 }
 
@@ -28,6 +26,9 @@ export function PhoneStep({
   onTelefonoChange,
   onSubmit,
   onIrACredenciales,
+  error,
+  isLoading = false,
+  cooldown = 0,
 }: PhoneStepProps) {
   function handleChange(e: ChangeEvent<HTMLInputElement>) {
     onTelefonoChange(formatearTelefono(e.target.value));
@@ -47,7 +48,9 @@ export function PhoneStep({
         icon={<IconPhone size={18} />}
         value={telefono}
         onChange={handleChange}
-        maxLength={11} // 10 dígitos + guión
+        maxLength={11}
+        error={error}
+        disabled={isLoading}
         required
       />
 
@@ -55,9 +58,15 @@ export function PhoneStep({
         type="submit"
         variant="primary"
         fullWidth
-        disabled={!telefonoCompleto}
+        disabled={!telefonoCompleto || isLoading || cooldown > 0}
       >
-        Iniciar sesión
+        <span className="tabular-nums">
+          {isLoading
+            ? "Enviando código..."
+            : cooldown > 0
+              ? `Reintentar en ${cooldown}s`
+              : "Iniciar sesión"}
+        </span>
       </Button>
 
       <Button
@@ -65,6 +74,7 @@ export function PhoneStep({
         variant="subtle"
         fullWidth
         onClick={onIrACredenciales}
+        disabled={isLoading}
         className="text-center"
       >
         Iniciar sesión con usuario y contraseña

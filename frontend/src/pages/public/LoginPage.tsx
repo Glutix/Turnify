@@ -1,70 +1,108 @@
-import { useState, type FormEvent } from "react";
-
+import { useEffect, useReducer, useState, type FormEvent } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 
 import { PhoneStep } from "../../components/auth/PhoneStep";
 import { CodeStep } from "../../components/auth/CodeStep";
 import { CredentialsStep } from "../../components/auth/CredentialsStep";
 import { RegisterStep } from "../../components/auth/RegisterStep";
+import { Logo } from "../../components/common/Logo";
 
 import api from "../../api/axios";
 import { useAuthStore } from "../../stores/authStore";
+import { useOtpFlowStore } from "../../stores/useOtpFlowStore";
+import { extraerMensajeError } from "../../utils/extraerMensajeError";
 
 type LoginStep = "telefono" | "codigo" | "registro" | "credenciales";
 
 export function LoginPage() {
   const navigate = useNavigate();
-
   const setAuth = useAuthStore((state) => state.setAuth);
+
+  const telefono = useOtpFlowStore((state) => state.telefono);
+  const setTelefono = useOtpFlowStore((state) => state.setTelefono);
+  const cooldownHasta = useOtpFlowStore((state) => state.cooldownHasta);
+  const registrarIntentoOtp = useOtpFlowStore(
+    (state) => state.registrarIntento,
+  );
 
   const [step, setStep] = useState<LoginStep>("telefono");
 
-  const [telefono, setTelefono] = useState("");
-
   const [codigo, setCodigo] = useState("");
-
   const [identificador, setIdentificador] = useState("");
-
   const [contrasena, setContrasena] = useState("");
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Sentinela: 0 significa "todavía no sincronizamos con el reloj real".
+  const [ahora, setAhora] = useState(0);
+
+  useEffect(() => {
+    const sincronizar = () => setAhora(Date.now());
+    sincronizar(); // corrige el valor apenas cambia el cooldown, sin esperar 1s
+
+    if (cooldownHasta <= Date.now()) return;
+
+    const intervalo = setInterval(sincronizar, 1000);
+    return () => clearInterval(intervalo);
+  }, [cooldownHasta]);
+
+  const cooldownTelefono =
+    ahora === 0 ? 0 : Math.max(0, Math.ceil((cooldownHasta - ahora) / 1000));
+
+  function irAPaso(nuevoPaso: LoginStep) {
+    setError(null);
+    setStep(nuevoPaso);
+  }
+
+  function redirigirSegunRol(rol: "admin" | "cliente") {
+    navigate(rol === "admin" ? "/admin" : "/", { replace: true });
+  }
 
   async function handleSubmitTelefono(e: FormEvent) {
     e.preventDefault();
+    setError(null);
+    setIsLoading(true);
 
     try {
-      await api.post("/auth/solicitar-codigo", {
-        telefono,
-      });
-
+      await api.post("/auth/solicitar-codigo", { telefono });
+      registrarIntentoOtp();
       setStep("codigo");
-    } catch (error) {
-      console.error("Error enviando OTP", error);
+    } catch (err) {
+      registrarIntentoOtp();
+      setError(
+        extraerMensajeError(
+          err,
+          "No pudimos enviar el código. Intentá de nuevo.",
+        ),
+      );
+    } finally {
+      setIsLoading(false);
     }
   }
 
   async function handleSubmitCodigo(e: FormEvent) {
     e.preventDefault();
+    setError(null);
+    setIsLoading(true);
 
     try {
-      const response = await api.post("/auth/validar-codigo", {
+      const { data } = await api.post("/auth/validar-codigo", {
         telefono,
         codigo,
       });
 
-      const data = response.data;
-
-      console.log("Respuesta OTP:", data);
-
       if (data.requiereRegistro) {
         setStep("registro");
-
         return;
       }
 
       setAuth(data.usuario, data.token);
-
-      navigate("/");
-    } catch (error) {
-      console.error("Error validando código", error);
+      redirigirSegunRol(data.usuario.rol);
+    } catch (err) {
+      setError(extraerMensajeError(err, "Código incorrecto o expirado."));
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -74,27 +112,27 @@ export function LoginPage() {
     apellido: string,
   ) {
     e.preventDefault();
+    setError(null);
+    setIsLoading(true);
 
     try {
-      const response = await api.post("/auth/registro", {
+      const { data } = await api.post("/auth/registro", {
         telefono,
         nombre,
         apellido,
       });
 
-      const data = response.data;
-
       setAuth(data.usuario, data.token);
-
-      navigate("/");
-    } catch (error) {
-      console.error("Error registrando usuario", error);
+      redirigirSegunRol(data.usuario.rol);
+    } catch (err) {
+      setError(extraerMensajeError(err, "No pudimos crear la cuenta."));
+    } finally {
+      setIsLoading(false);
     }
   }
 
   function handleSubmitCredenciales(e: FormEvent) {
     e.preventDefault();
-
     console.log("Login con usuario/contraseña pendiente");
   }
 
@@ -102,15 +140,11 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-blush px-6 py-12 font-sans text-espresso">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <NavLink
-            to="/"
-            className="rounded-sm font-serif text-3xl font-medium tracking-wide text-espresso"
-          >
-            Turni
-            <span className="italic text-rosewood">fy</span>
+          <NavLink to="/" className="inline-block rounded-sm">
+            <Logo size={64} variant="gradient" />
           </NavLink>
 
-          <p className="mt-2 text-sm text-espresso/60">
+          <p className="mt-4 text-sm text-espresso/60">
             {step === "credenciales"
               ? "Ingresá con tu usuario y contraseña"
               : "Ingresá tu teléfono para continuar"}
@@ -121,50 +155,44 @@ export function LoginPage() {
           {step === "telefono" && (
             <PhoneStep
               telefono={telefono}
-
               onTelefonoChange={setTelefono}
-
               onSubmit={handleSubmitTelefono}
-
-              onIrACredenciales={() => setStep("credenciales")}
+              onIrACredenciales={() => irAPaso("credenciales")}
+              error={error ?? undefined}
+              isLoading={isLoading}
+              cooldown={cooldownTelefono}
             />
           )}
 
           {step === "codigo" && (
             <CodeStep
               telefono={telefono}
-
               codigo={codigo}
-
               onCodigoChange={setCodigo}
-
               onSubmit={handleSubmitCodigo}
-
-              onVolver={() => setStep("telefono")}
+              onVolver={() => irAPaso("telefono")}
+              error={error ?? undefined}
+              isLoading={isLoading}
             />
           )}
 
           {step === "registro" && (
             <RegisterStep
               telefono={telefono}
-
               onSubmit={handleRegistro}
+              error={error ?? undefined}
+              isLoading={isLoading}
             />
           )}
 
           {step === "credenciales" && (
             <CredentialsStep
               identificador={identificador}
-
               onIdentificadorChange={setIdentificador}
-
               contrasena={contrasena}
-
               onContrasenaChange={setContrasena}
-
               onSubmit={handleSubmitCredenciales}
-
-              onIrATelefono={() => setStep("telefono")}
+              onIrATelefono={() => irAPaso("telefono")}
             />
           )}
         </div>

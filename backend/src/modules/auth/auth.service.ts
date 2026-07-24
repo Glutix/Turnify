@@ -29,7 +29,13 @@ export class AuthService {
       },
     });
 
-    await this.notificador.enviarCodigo(telefono, codigo);
+    try {
+      await this.notificador.enviarCodigo(telefono, codigo);
+    } catch (error) {
+      const mensaje =
+        error instanceof Error ? error.message : "No se pudo enviar el código";
+      throw new BadRequestException(mensaje);
+    }
   }
 
   async validarCodigo(telefonoCrudo: string, codigo: string) {

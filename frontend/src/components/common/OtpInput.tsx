@@ -11,6 +11,8 @@ interface OtpInputProps {
   value: string;
   onChange: (value: string) => void;
   autoFocus?: boolean;
+  error?: boolean;
+  disabled?: boolean;
 }
 
 export function OtpInput({
@@ -18,6 +20,8 @@ export function OtpInput({
   value,
   onChange,
   autoFocus = false,
+  error = false,
+  disabled = false,
 }: OtpInputProps) {
   const [digitos, setDigitos] = useState<string[]>(() =>
     Array.from({ length }, (_, i) => value[i] ?? ""),
@@ -96,6 +100,7 @@ export function OtpInput({
           inputMode="numeric"
           autoComplete={index === 0 ? "one-time-code" : "off"}
           maxLength={1}
+          disabled={disabled}
           value={digito}
           onChange={(e) => handleChange(index, e)}
           onKeyDown={(e) => handleKeyDown(index, e)}
@@ -103,7 +108,11 @@ export function OtpInput({
           onFocus={(e) => e.target.select()}
           autoFocus={autoFocus && index === 0}
           aria-label={`Dígito ${index + 1} de ${length}`}
-          className="h-14 w-11 rounded-xl border border-espresso/15 bg-superficie text-center text-xl font-semibold text-espresso transition focus:border-rosewood focus:outline-none focus:ring-2 focus:ring-rosewood/20 sm:w-12"
+          className={`h-14 w-11 rounded-xl border bg-superficie text-center text-xl font-semibold text-espresso transition focus:outline-none focus:ring-2 focus:ring-rosewood/20 disabled:cursor-not-allowed disabled:opacity-50 sm:w-12 ${
+            error
+              ? "border-rosewood"
+              : "border-espresso/15 focus:border-rosewood"
+          }`}
         />
       ))}
     </div>

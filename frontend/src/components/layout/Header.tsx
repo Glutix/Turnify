@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { IconMenu, IconClose } from "../common/Icons";
 import { useAuthStore } from "../../stores/authStore";
+import { Logo } from "../common/Logo";
 
 const NAV_LINKS = [
   { to: "/", label: "Inicio" },
@@ -21,9 +22,9 @@ export function Header() {
         {/* Logo */}
         <NavLink
           to="/"
-          className="rounded-sm font-serif text-2xl font-medium tracking-wide text-espresso focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rosewood/50"
+          className="rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rosewood/50"
         >
-          Turni<span className="italic text-rosewood">fy</span>
+          <Logo size={64} variant="gradient" />
         </NavLink>
 
         {/* Navegación escritorio */}
@@ -37,10 +38,9 @@ export function Header() {
               to={link.to}
               end={link.to === "/"}
               className={({ isActive }) =>
-                `rounded-sm text-sm uppercase tracking-widest transition-colors focus-visible:outline-none focus-visible:ring-2 ${
-                  isActive
-                    ? "text-rosewood"
-                    : "text-espresso/70 hover:text-rosewood"
+                `rounded-sm text-sm uppercase tracking-widest transition-colors focus-visible:outline-none focus-visible:ring-2 ${isActive
+                  ? "text-rosewood"
+                  : "text-espresso/70 hover:text-rosewood"
                 }`
               }
             >
@@ -109,8 +109,7 @@ export function Header() {
               end={link.to === "/"}
               onClick={() => setMenuAbierto(false)}
               className={({ isActive }) =>
-                `rounded-lg px-3 py-3 text-sm uppercase tracking-widest ${
-                  isActive ? "bg-rosewood/10 text-rosewood" : "text-espresso/70"
+                `rounded-lg px-3 py-3 text-sm uppercase tracking-widest ${isActive ? "bg-rosewood/10 text-rosewood" : "text-espresso/70"
                 }`
               }
             >

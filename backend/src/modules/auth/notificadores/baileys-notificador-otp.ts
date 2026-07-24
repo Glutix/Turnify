@@ -1,5 +1,5 @@
-// src/modules/auth/notificadores/baileys-notificador-otp.ts
 import { Injectable, Logger, type OnModuleInit } from "@nestjs/common";
+import { rm } from "node:fs/promises";
 import makeWASocket, {
   useMultiFileAuthState,
   DisconnectReason,
@@ -9,6 +9,8 @@ import { type Boom } from "@hapi/boom";
 import { NotificadorOtp } from "./notificador-otp.abstract";
 import qrcode from "qrcode-terminal";
 import P from "pino";
+
+const CARPETA_SESION = "baileys-auth";
 
 @Injectable()
 export class BaileysNotificadorOtp
@@ -23,7 +25,7 @@ export class BaileysNotificadorOtp
   }
 
   private async conectar(): Promise<void> {
-    const { state, saveCreds } = await useMultiFileAuthState("baileys-auth");
+    const { state, saveCreds } = await useMultiFileAuthState(CARPETA_SESION);
 
     this.socket = makeWASocket({
       auth: state,
@@ -48,15 +50,34 @@ export class BaileysNotificadorOtp
 
       if (connection === "close") {
         const motivo = (lastDisconnect?.error as Boom)?.output?.statusCode;
-        const debeReconectar = motivo !== DisconnectReason.loggedOut;
+        const sesionInvalida = motivo === DisconnectReason.loggedOut;
 
-        this.logger.warn(`Conexión cerrada. Reconectando: ${debeReconectar}`);
+        this.logger.warn(`Conexión cerrada. Reconectando: ${!sesionInvalida}`);
 
-        if (debeReconectar) {
-          this.conectar();
+        if (sesionInvalida) {
+          // Las credenciales guardadas ya no sirven (se cerró sesión desde
+          // el teléfono, o expiró). Las borramos para forzar un QR nuevo
+          // en vez de quedar trabados sin reconectar nunca más.
+          this.reiniciarSesion();
+          return;
         }
+
+        this.conectar();
       }
     });
+  }
+
+  private async reiniciarSesion(): Promise<void> {
+    try {
+      await rm(CARPETA_SESION, { recursive: true, force: true });
+      this.logger.warn(
+        "Sesión de WhatsApp inválida — carpeta de credenciales eliminada. Generando QR nuevo...",
+      );
+    } catch (error) {
+      this.logger.error("No se pudo borrar la carpeta de sesión", error);
+    }
+
+    await this.conectar();
   }
 
   async enviarCodigo(telefono: string, codigo: string): Promise<void> {

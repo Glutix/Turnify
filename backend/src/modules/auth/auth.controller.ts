@@ -1,6 +1,9 @@
-import { Body, Controller, HttpCode, Post } from "@nestjs/common";
+import { Body, Controller, HttpCode, Post, UseGuards } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
+import { ThrottlerGuard, Throttle } from "@nestjs/throttler";
+
 import { AuthService } from "./auth.service";
+
 import { SolicitarCodigoDto } from "./dto/solicitar-codigo.dto";
 import { ValidarCodigoDto } from "./dto/validar-codigo.dto";
 import { RegistroDto } from "./dto/registro.dto";
@@ -11,12 +14,13 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post("solicitar-codigo")
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 1, ttl: 10000 } })
   @HttpCode(200)
   @ApiOperation({
     summary: "Envía un código OTP de 6 dígitos al teléfono indicado",
   })
   async solicitarCodigo(@Body() dto: SolicitarCodigoDto) {
-    console.log("ENTRO CONTROLLER", dto);
     await this.authService.solicitarCodigo(dto.telefono);
     return { mensaje: "Código enviado" };
   }

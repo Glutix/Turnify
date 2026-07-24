@@ -1,3 +1,4 @@
+// Turnify\frontend\src\components\auth\CredentialsStep.tsx
 import { useState, type FormEvent } from "react";
 import { IconUser, IconLock, IconEye, IconEyeOff } from "../common/Icons";
 import { Button } from "../common/Button";
