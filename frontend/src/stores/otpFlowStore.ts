@@ -1,21 +1,22 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+export type LoginStep = "telefono" | "codigo" | "registro" | "credenciales";
+
 interface OtpFlowState {
-  /** Último teléfono tipeado/enviado. Persiste para no perderlo al refrescar. */
   telefono: string;
   intentos: number;
-  /** Timestamp (epoch ms) hasta cuándo dura el cooldown. 0 = sin cooldown activo. */
   cooldownHasta: number;
+  step: LoginStep;
   setTelefono: (telefono: string) => void;
   registrarIntento: () => void;
+  setStep: (step: LoginStep) => void;
 }
 
-const TOPE_SEGUNDOS = 60;
-// Si pasó más de esto desde que terminó el último cooldown, se considera
-// una serie nueva de intentos (evita que el backoff quede pegado en 60s
-// para siempre después de un uso normal hace rato).
-const VENTANA_REINICIO_MS = 2 * 60 * 1000;
+const COOLDOWN_BASE_SEGUNDOS = 10;
+const UMBRAL_INTENTOS = 3;
+const COOLDOWN_EXTENDIDO_SEGUNDOS = 60;
+const VENTANA_REINICIO_MS = 5 * 60 * 1000;
 
 export const useOtpFlowStore = create<OtpFlowState>()(
   persist(
@@ -23,14 +24,19 @@ export const useOtpFlowStore = create<OtpFlowState>()(
       telefono: "",
       intentos: 0,
       cooldownHasta: 0,
+      step: "telefono",
       setTelefono: (telefono) => set({ telefono }),
+      setStep: (step) => set({ step }),
       registrarIntento: () => {
         const { intentos, cooldownHasta } = get();
         const esNuevaSerie =
           cooldownHasta === 0 ||
           Date.now() - cooldownHasta > VENTANA_REINICIO_MS;
         const nuevosIntentos = esNuevaSerie ? 1 : intentos + 1;
-        const segundos = Math.min(nuevosIntentos * 10, TOPE_SEGUNDOS);
+        const segundos =
+          nuevosIntentos > UMBRAL_INTENTOS
+            ? COOLDOWN_EXTENDIDO_SEGUNDOS
+            : COOLDOWN_BASE_SEGUNDOS;
 
         set({
           intentos: nuevosIntentos,

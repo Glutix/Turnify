@@ -1,3 +1,4 @@
+//Turnify\frontend\src\hooks\useCategoriasServicio.ts
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getCategorias,

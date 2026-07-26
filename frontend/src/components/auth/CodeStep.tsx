@@ -9,6 +9,11 @@ interface CodeStepProps {
   onCodigoChange: (value: string) => void;
   onSubmit: (e: FormEvent) => void;
   onVolver: () => void;
+  onReenviar: () => void;
+  cooldownReenvio: number;
+  intentosRestantes: number;
+  codigoBloqueado: boolean;
+  resetKey: number;
   error?: string;
   isLoading?: boolean;
 }
@@ -21,8 +26,13 @@ export function CodeStep({
   onCodigoChange,
   onSubmit,
   onVolver,
+  onReenviar,
+  cooldownReenvio,
+  intentosRestantes,
+  codigoBloqueado,
   error,
   isLoading = false,
+  resetKey,
 }: CodeStepProps) {
   const codigoCompleto = codigo.length === LARGO_CODIGO;
 
@@ -49,24 +59,51 @@ export function CodeStep({
           Código de verificación
         </label>
         <OtpInput
+          key={resetKey}
           length={LARGO_CODIGO}
           value={codigo}
           onChange={onCodigoChange}
           autoFocus
           error={!!error}
-          disabled={isLoading}
+          disabled={isLoading || codigoBloqueado}
         />
-        {error && <p className="text-center text-xs text-rosewood">{error}</p>}
+
+        {error && !codigoBloqueado && (
+          <p className="text-center text-xs text-rosewood">
+            {error} — te quedan {intentosRestantes}{" "}
+            {intentosRestantes === 1 ? "intento" : "intentos"}.
+          </p>
+        )}
+
+        {codigoBloqueado && (
+          <p className="text-center text-xs text-rosewood">
+            Superaste el máximo de intentos. Solicitá un código nuevo para
+            continuar.
+          </p>
+        )}
       </div>
 
-      <Button
-        type="submit"
-        variant="primary"
-        fullWidth
-        disabled={!codigoCompleto || isLoading}
+      {!codigoBloqueado && (
+        <Button
+          type="submit"
+          variant="primary"
+          fullWidth
+          disabled={!codigoCompleto || isLoading}
+        >
+          <span>{isLoading ? "Verificando..." : "Verificar código"}</span>
+        </Button>
+      )}
+
+      <button
+        type="button"
+        onClick={onReenviar}
+        disabled={cooldownReenvio > 0 || isLoading}
+        className="text-center text-xs tabular-nums text-espresso/50 transition-colors hover:text-rosewood disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {isLoading ? "Verificando..." : "Verificar código"}
-      </Button>
+        {cooldownReenvio > 0
+          ? `Reenviar código en ${cooldownReenvio}s`
+          : "¿No recibiste el código? Reenviar"}
+      </button>
     </form>
   );
 }

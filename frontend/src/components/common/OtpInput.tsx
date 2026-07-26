@@ -36,8 +36,6 @@ export function OtpInput({
   function handleChange(index: number, e: ChangeEvent<HTMLInputElement>) {
     const soloNumeros = e.target.value.replace(/\D/g, "");
 
-    // Autocompletado por SMS: el sistema operativo puede pegar
-    // todo el código de una sola vez en un solo campo.
     if (soloNumeros.length > 1) {
       const combinado = (digitos.slice(0, index).join("") + soloNumeros).slice(
         0,

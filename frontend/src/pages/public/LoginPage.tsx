@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 
 import { PhoneStep } from "../../components/auth/PhoneStep";
@@ -9,10 +9,10 @@ import { Logo } from "../../components/common/Logo";
 
 import api from "../../api/axios";
 import { useAuthStore } from "../../stores/authStore";
-import { useOtpFlowStore } from "../../stores/useOtpFlowStore";
+import { useOtpFlowStore } from "../../stores/otpFlowStore";
 import { extraerMensajeError } from "../../utils/extraerMensajeError";
 
-type LoginStep = "telefono" | "codigo" | "registro" | "credenciales";
+const MAX_INTENTOS_CODIGO = 3;
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -24,8 +24,8 @@ export function LoginPage() {
   const registrarIntentoOtp = useOtpFlowStore(
     (state) => state.registrarIntento,
   );
-
-  const [step, setStep] = useState<LoginStep>("telefono");
+  const step = useOtpFlowStore((state) => state.step);
+  const setStep = useOtpFlowStore((state) => state.setStep);
 
   const [codigo, setCodigo] = useState("");
   const [identificador, setIdentificador] = useState("");
@@ -34,12 +34,15 @@ export function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Sentinela: 0 significa "todavía no sincronizamos con el reloj real".
+  const [intentosCodigo, setIntentosCodigo] = useState(0);
+  const codigoBloqueado = intentosCodigo >= MAX_INTENTOS_CODIGO;
+  const ultimoCodigoVerificadoRef = useRef("");
+
   const [ahora, setAhora] = useState(0);
 
   useEffect(() => {
     const sincronizar = () => setAhora(Date.now());
-    sincronizar(); // corrige el valor apenas cambia el cooldown, sin esperar 1s
+    sincronizar();
 
     if (cooldownHasta <= Date.now()) return;
 
@@ -47,10 +50,10 @@ export function LoginPage() {
     return () => clearInterval(intervalo);
   }, [cooldownHasta]);
 
-  const cooldownTelefono =
+  const cooldownActivo =
     ahora === 0 ? 0 : Math.max(0, Math.ceil((cooldownHasta - ahora) / 1000));
 
-  function irAPaso(nuevoPaso: LoginStep) {
+  function irAPaso(nuevoPaso: typeof step) {
     setError(null);
     setStep(nuevoPaso);
   }
@@ -59,15 +62,17 @@ export function LoginPage() {
     navigate(rol === "admin" ? "/admin" : "/", { replace: true });
   }
 
-  async function handleSubmitTelefono(e: FormEvent) {
-    e.preventDefault();
+  async function solicitarCodigo() {
     setError(null);
     setIsLoading(true);
 
     try {
       await api.post("/auth/solicitar-codigo", { telefono });
       registrarIntentoOtp();
-      setStep("codigo");
+      setCodigo("");
+      setIntentosCodigo(0);
+      ultimoCodigoVerificadoRef.current = "";
+      return true;
     } catch (err) {
       registrarIntentoOtp();
       setError(
@@ -76,20 +81,31 @@ export function LoginPage() {
           "No pudimos enviar el código. Intentá de nuevo.",
         ),
       );
+      return false;
     } finally {
       setIsLoading(false);
     }
   }
 
-  async function handleSubmitCodigo(e: FormEvent) {
+  async function handleSubmitTelefono(e: FormEvent) {
     e.preventDefault();
+    const enviado = await solicitarCodigo();
+    if (enviado) setStep("codigo");
+  }
+
+  async function handleReenviarCodigo() {
+    await solicitarCodigo();
+  }
+
+  async function verificarCodigo(codigoAVerificar: string) {
     setError(null);
     setIsLoading(true);
+    ultimoCodigoVerificadoRef.current = codigoAVerificar;
 
     try {
       const { data } = await api.post("/auth/validar-codigo", {
         telefono,
-        codigo,
+        codigo: codigoAVerificar,
       });
 
       if (data.requiereRegistro) {
@@ -100,11 +116,30 @@ export function LoginPage() {
       setAuth(data.usuario, data.token);
       redirigirSegunRol(data.usuario.rol);
     } catch (err) {
+      setIntentosCodigo((prev) => prev + 1);
       setError(extraerMensajeError(err, "Código incorrecto o expirado."));
     } finally {
       setIsLoading(false);
     }
   }
+
+  async function handleSubmitCodigo(e: FormEvent) {
+    e.preventDefault();
+    await verificarCodigo(codigo);
+  }
+
+  useEffect(() => {
+    if (
+      step === "codigo" &&
+      codigo.length === 6 &&
+      !isLoading &&
+      !codigoBloqueado &&
+      codigo !== ultimoCodigoVerificadoRef.current
+    ) {
+      verificarCodigo(codigo);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [codigo, step, codigoBloqueado]);
 
   async function handleRegistro(
     e: FormEvent,
@@ -160,7 +195,7 @@ export function LoginPage() {
               onIrACredenciales={() => irAPaso("credenciales")}
               error={error ?? undefined}
               isLoading={isLoading}
-              cooldown={cooldownTelefono}
+              cooldown={cooldownActivo}
             />
           )}
 
@@ -171,6 +206,11 @@ export function LoginPage() {
               onCodigoChange={setCodigo}
               onSubmit={handleSubmitCodigo}
               onVolver={() => irAPaso("telefono")}
+              onReenviar={handleReenviarCodigo}
+              cooldownReenvio={cooldownActivo}
+              intentosRestantes={MAX_INTENTOS_CODIGO - intentosCodigo}
+              codigoBloqueado={codigoBloqueado}
+              resetKey={cooldownHasta}
               error={error ?? undefined}
               isLoading={isLoading}
             />
