@@ -5,10 +5,9 @@
   "author": "",
   "private": true,
   "license": "UNLICENSED",
-  "prisma": {
-    "seed": "ts-node prisma/seed.ts"
-  },
   "scripts": {
+    "seed": "prisma db seed",
+    "db:reset": "prisma migrate reset --force",
     "build": "nest build",
     "start": "nest start",
     "start:dev": "nest start --watch",

@@ -1,4 +1,4 @@
-// ClientesAdminPage.tsx
+//Turnify\frontend\src\pages\admin\ClientesAdminPage.tsx
 export function ClientesAdminPage() {
   return <div>Historial de Clientes</div>;
 }

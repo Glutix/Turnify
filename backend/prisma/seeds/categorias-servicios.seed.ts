@@ -1,17 +1,8 @@
-import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-import "dotenv/config";
-
-console.log("Console 1 >", process.cwd());
-console.log("Console 1 >", process.env.DATABASE_URL);
-
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
-const prisma = new PrismaClient({ adapter });
-
+import { prisma } from "./prisma";
 // ⚠️ Precios ilustrativos, solo para ver estilos en frontend admin/público.
 // La administradora debe ajustarlos a valores reales desde el panel /admin/servicios.
 
-async function main() {
+export async function seedCategoriasServicios() {
   console.log("Iniciando seed de categorías y servicios...");
 
   const categorias = [
@@ -121,14 +112,5 @@ async function main() {
     }
   }
 
-  console.log("Seed finalizado.");
+  console.log("✓ Categorías y servicios procesados correctamente.");
 }
-
-main()
-  .catch((e) => {
-    console.error("Error en el seed:", e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });

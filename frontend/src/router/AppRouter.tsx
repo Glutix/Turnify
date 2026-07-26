@@ -1,9 +1,10 @@
+//Turnify\frontend\src\router\AppRouter.tsx
 import { Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "./ProtectedRoute";
+import { GuestRoute } from "./GuestRoute";
 import { PublicLayout } from "../components/layout/PublicLayout";
 
 import { LandingPage } from "../pages/public/LandingPage";
-import { ServiciosRouterPage } from "../pages/public/ServiciosRouterPage";
 import { PortafolioPage } from "../pages/public/PortafolioPage";
 import { TurnosPage } from "../pages/public/TurnosPage";
 import { LoginPage } from "../pages/public/LoginPage";
@@ -17,6 +18,9 @@ import { PortafolioAdminPage } from "../pages/admin/PortafolioAdminPage";
 import { ProductosAdminPage } from "../pages/admin/ProductosAdminPage";
 import { PedidosAdminPage } from "../pages/admin/PedidosAdminPage";
 import { ClientesAdminPage } from "../pages/admin/ClientesAdminPage";
+import { AdminLayout } from "../components/layout/AdminLayout";
+import { UsuariosAdminPage } from "../pages/admin/UsuariosAdminPage";
+import { ServiciosPage } from "../pages/public/ServiciosPage";
 
 export function AppRouter() {
   return (
@@ -24,89 +28,40 @@ export function AppRouter() {
       {/* PUBLICAS */}
       <Route element={<PublicLayout />}>
         <Route path="/" element={<LandingPage />} />
-
-        <Route path="/servicios" element={<ServiciosRouterPage />} />
-
+        <Route path="/servicios" element={<ServiciosPage />} />
         <Route path="/portafolio" element={<PortafolioPage />} />
-
         <Route path="/turnos" element={<TurnosPage />} />
       </Route>
 
       {/* LOGIN */}
-      <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/login"
+        element={
+          <GuestRoute>
+            <LoginPage />
+          </GuestRoute>
+        }
+      />
 
       {/* ADMIN */}
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute requiredRole="admin">
-            <AgendaPage />
-          </ProtectedRoute>
-        }
-      />
 
       <Route
-        path="/admin/turnos"
         element={
           <ProtectedRoute requiredRole="admin">
-            <TurnosAdminPage />
+            <AdminLayout />
           </ProtectedRoute>
         }
-      />
-
-      <Route
-        path="/admin/servicios"
-        element={
-          <ProtectedRoute requiredRole="admin">
-            <ServiciosAdminPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/horarios"
-        element={
-          <ProtectedRoute requiredRole="admin">
-            <HorariosAdminPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/portafolio"
-        element={
-          <ProtectedRoute requiredRole="admin">
-            <PortafolioAdminPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/productos"
-        element={
-          <ProtectedRoute requiredRole="admin">
-            <ProductosAdminPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/pedidos"
-        element={
-          <ProtectedRoute requiredRole="admin">
-            <PedidosAdminPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/clientes"
-        element={
-          <ProtectedRoute requiredRole="admin">
-            <ClientesAdminPage />
-          </ProtectedRoute>
-        }
-      />
+      >
+        <Route path="/admin" element={<AgendaPage />} />
+        <Route path="/admin/turnos" element={<TurnosAdminPage />} />
+        <Route path="/admin/servicios" element={<ServiciosAdminPage />} />
+        <Route path="/admin/horarios" element={<HorariosAdminPage />} />
+        <Route path="/admin/portafolio" element={<PortafolioAdminPage />} />
+        <Route path="/admin/productos" element={<ProductosAdminPage />} />
+        <Route path="/admin/pedidos" element={<PedidosAdminPage />} />
+        <Route path="/admin/clientes" element={<ClientesAdminPage />} />
+        <Route path="/admin/usuarios" element={<UsuariosAdminPage />} />
+      </Route>
 
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

@@ -20,3 +20,54 @@ body {
   color: var(--color-espresso);
 }
 
+/* ─── Animaciones del OTP ────────────────────────────────── */
+@keyframes spin-led {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes otp-icon-pop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+
+  70% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.otp-icon-pop {
+  animation: otp-icon-pop 0.35s ease-out both;
+}
+
+/* Anillo tipo "luz LED girando" alrededor del grupo de casillas */
+.otp-ring-verificando {
+  position: relative;
+}
+
+.otp-ring-verificando::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 1rem;
+  padding: 2px;
+  background: conic-gradient(from 0deg,
+      transparent 0%,
+      var(--color-oro) 25%,
+      var(--color-rosewood) 50%,
+      transparent 75%);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: spin-led 1.1s linear infinite;
+}

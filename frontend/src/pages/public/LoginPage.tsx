@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+//Turnify\frontend\src\pages\public\LoginPage.tsx
+import { useEffect, useState, type FormEvent } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 
 import { PhoneStep } from "../../components/auth/PhoneStep";
@@ -13,6 +14,7 @@ import { useOtpFlowStore } from "../../stores/otpFlowStore";
 import { extraerMensajeError } from "../../utils/extraerMensajeError";
 
 const MAX_INTENTOS_CODIGO = 3;
+type EstadoVerificacion = "idle" | "verificando" | "correcto" | "incorrecto";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -36,7 +38,10 @@ export function LoginPage() {
 
   const [intentosCodigo, setIntentosCodigo] = useState(0);
   const codigoBloqueado = intentosCodigo >= MAX_INTENTOS_CODIGO;
-  const ultimoCodigoVerificadoRef = useRef("");
+
+  const [estadoVerificacion, setEstadoVerificacion] =
+    useState<EstadoVerificacion>("idle");
+  const [otpResetKey, setOtpResetKey] = useState(0);
 
   const [ahora, setAhora] = useState(0);
 
@@ -55,6 +60,7 @@ export function LoginPage() {
 
   function irAPaso(nuevoPaso: typeof step) {
     setError(null);
+    setEstadoVerificacion("idle");
     setStep(nuevoPaso);
   }
 
@@ -71,7 +77,8 @@ export function LoginPage() {
       registrarIntentoOtp();
       setCodigo("");
       setIntentosCodigo(0);
-      ultimoCodigoVerificadoRef.current = "";
+      setEstadoVerificacion("idle");
+      setOtpResetKey((k) => k + 1);
       return true;
     } catch (err) {
       registrarIntentoOtp();
@@ -99,8 +106,7 @@ export function LoginPage() {
 
   async function verificarCodigo(codigoAVerificar: string) {
     setError(null);
-    setIsLoading(true);
-    ultimoCodigoVerificadoRef.current = codigoAVerificar;
+    setEstadoVerificacion("verificando");
 
     try {
       const { data } = await api.post("/auth/validar-codigo", {
@@ -108,38 +114,43 @@ export function LoginPage() {
         codigo: codigoAVerificar,
       });
 
-      if (data.requiereRegistro) {
-        setStep("registro");
-        return;
-      }
+      setEstadoVerificacion("correcto");
 
-      setAuth(data.usuario, data.token);
-      redirigirSegunRol(data.usuario.rol);
+      setTimeout(() => {
+        if (data.requiereRegistro) {
+          setEstadoVerificacion("idle");
+          setStep("registro");
+          return;
+        }
+        setAuth(data.usuario, data.token);
+        redirigirSegunRol(data.usuario.rol);
+      }, 1100);
     } catch (err) {
       setIntentosCodigo((prev) => prev + 1);
       setError(extraerMensajeError(err, "Código incorrecto o expirado."));
-    } finally {
-      setIsLoading(false);
+      setEstadoVerificacion("incorrecto");
+
+      setTimeout(() => {
+        setCodigo("");
+        setOtpResetKey((k) => k + 1);
+        setEstadoVerificacion("idle");
+      }, 1100);
     }
   }
 
-  async function handleSubmitCodigo(e: FormEvent) {
-    e.preventDefault();
-    await verificarCodigo(codigo);
-  }
+  // Se dispara directo desde el evento de tipeo (no desde un efecto): al
+  // completar los 6 dígitos, arranca la verificación sin botón manual.
+  function handleCodigoChange(valor: string) {
+    setCodigo(valor);
 
-  useEffect(() => {
     if (
-      step === "codigo" &&
-      codigo.length === 6 &&
-      !isLoading &&
-      !codigoBloqueado &&
-      codigo !== ultimoCodigoVerificadoRef.current
+      valor.length === 6 &&
+      estadoVerificacion === "idle" &&
+      !codigoBloqueado
     ) {
-      verificarCodigo(codigo);
+      verificarCodigo(valor);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [codigo, step, codigoBloqueado]);
+  }
 
   async function handleRegistro(
     e: FormEvent,
@@ -171,12 +182,13 @@ export function LoginPage() {
     console.log("Login con usuario/contraseña pendiente");
   }
 
+  
   return (
     <div className="flex min-h-screen items-center justify-center bg-blush px-6 py-12 font-sans text-espresso">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <NavLink to="/" className="inline-block rounded-sm">
-            <Logo size={64} variant="gradient" />
+            <Logo size={128} variant="gradient" />
           </NavLink>
 
           <p className="mt-4 text-sm text-espresso/60">
@@ -203,16 +215,15 @@ export function LoginPage() {
             <CodeStep
               telefono={telefono}
               codigo={codigo}
-              onCodigoChange={setCodigo}
-              onSubmit={handleSubmitCodigo}
+              onCodigoChange={handleCodigoChange}
               onVolver={() => irAPaso("telefono")}
               onReenviar={handleReenviarCodigo}
               cooldownReenvio={cooldownActivo}
               intentosRestantes={MAX_INTENTOS_CODIGO - intentosCodigo}
               codigoBloqueado={codigoBloqueado}
-              resetKey={cooldownHasta}
+              resetKey={otpResetKey}
+              estado={estadoVerificacion}
               error={error ?? undefined}
-              isLoading={isLoading}
             />
           )}
 
