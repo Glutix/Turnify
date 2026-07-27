@@ -8,6 +8,8 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { NotificadorOtp } from "./notificadores/notificador-otp.abstract";
 import { normalizarTelefono } from "./utils/normalizar-telefono";
 
+const MAX_INTENTOS_CODIGO = 5;
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -19,7 +21,6 @@ export class AuthService {
   async solicitarCodigo(telefonoCrudo: string): Promise<void> {
     const telefono = normalizarTelefono(telefonoCrudo);
     const codigo = this.generarCodigo();
-    console.log("telefono recibido en service:", telefonoCrudo);
 
     await this.prisma.otpVerificacion.create({
       data: {
@@ -50,18 +51,28 @@ export class AuthService {
       throw new BadRequestException("Código inválido o expirado");
     }
 
-    if (registro.intentos >= 5) {
-      throw new BadRequestException(
-        "Superaste el máximo de intentos, pedí un código nuevo",
-      );
+    if (registro.intentos >= MAX_INTENTOS_CODIGO) {
+      throw new BadRequestException({
+        message: "Superaste el máximo de intentos, pedí un código nuevo",
+        intentosRestantes: 0,
+      });
     }
 
     if (registro.codigo !== codigo) {
-      await this.prisma.otpVerificacion.update({
+      const actualizado = await this.prisma.otpVerificacion.update({
         where: { id: registro.id },
         data: { intentos: { increment: 1 } },
       });
-      throw new UnauthorizedException("Código incorrecto");
+
+      const intentosRestantes = Math.max(
+        MAX_INTENTOS_CODIGO - actualizado.intentos,
+        0,
+      );
+
+      throw new UnauthorizedException({
+        message: "Código incorrecto",
+        intentosRestantes,
+      });
     }
 
     await this.prisma.otpVerificacion.update({
@@ -74,7 +85,6 @@ export class AuthService {
     });
 
     if (!usuario) {
-      // Teléfono nuevo: el frontend debe pedir nombre/apellido y llamar a /auth/registro
       return { requiereRegistro: true, telefono: telefonoCrudo };
     }
 

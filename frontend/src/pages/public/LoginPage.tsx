@@ -10,10 +10,12 @@ import { Logo } from "../../components/common/Logo";
 import api from "../../api/axios";
 import { useAuthStore } from "../../stores/authStore";
 import { useOtpFlowStore } from "../../stores/otpFlowStore";
-import { extraerMensajeError } from "../../utils/extraerMensajeError";
+import {
+  extraerMensajeError,
+  extraerIntentosRestantes,
+} from "../../utils/extraerMensajeError";
 
 type LoginStep = "telefono" | "codigo" | "registro" | "credenciales";
-const MAX_INTENTOS_CODIGO = 3;
 type EstadoVerificacion = "idle" | "verificando" | "correcto" | "incorrecto";
 
 export function LoginPage() {
@@ -27,8 +29,6 @@ export function LoginPage() {
     (state) => state.registrarIntento,
   );
 
-  // Siempre arranca en "telefono", sin importar qué haya pasado antes en
-  // otra sesión de login — esto es intencional (ver mensaje de la sesión).
   const [step, setStep] = useState<LoginStep>("telefono");
 
   const [codigo, setCodigo] = useState("");
@@ -38,8 +38,12 @@ export function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [intentosCodigo, setIntentosCodigo] = useState(0);
-  const codigoBloqueado = intentosCodigo >= MAX_INTENTOS_CODIGO;
+  // null = todavía no sabemos cuántos intentos quedan (código recién
+  // enviado, aún sin errores). El backend es la única fuente de verdad.
+  const [intentosRestantes, setIntentosRestantes] = useState<number | null>(
+    null,
+  );
+  const codigoBloqueado = intentosRestantes === 0;
 
   const [estadoVerificacion, setEstadoVerificacion] =
     useState<EstadoVerificacion>("idle");
@@ -56,9 +60,6 @@ export function LoginPage() {
       const ahoraReal = Date.now();
       const terminado = ahoraReal >= cooldownHasta;
 
-      // Siempre sincroniza en el primer frame Y en el frame donde el cooldown
-      // termina — así nunca se detiene el loop sin haber reflejado el valor
-      // final real (que es lo que causaba el "1s" congelado para siempre).
       if (esPrimerFrame || terminado || marcaTiempo - ultimoTick >= 250) {
         esPrimerFrame = false;
         ultimoTick = marcaTiempo;
@@ -96,7 +97,7 @@ export function LoginPage() {
       await api.post("/auth/solicitar-codigo", { telefono });
       registrarIntentoOtp();
       setCodigo("");
-      setIntentosCodigo(0);
+      setIntentosRestantes(null);
       setEstadoVerificacion("idle");
       setOtpResetKey((k) => k + 1);
       return true;
@@ -146,8 +147,13 @@ export function LoginPage() {
         redirigirSegunRol(data.usuario.rol);
       }, 1100);
     } catch (err) {
-      setIntentosCodigo((prev) => prev + 1);
       setError(extraerMensajeError(err, "Código incorrecto o expirado."));
+
+      const restantes = extraerIntentosRestantes(err);
+      if (restantes !== undefined) {
+        setIntentosRestantes(restantes);
+      }
+
       setEstadoVerificacion("incorrecto");
 
       setTimeout(() => {
@@ -159,9 +165,6 @@ export function LoginPage() {
   }
 
   function handleCodigoChange(valor: string) {
-    // Segunda barrera además del `disabled` del input: aunque algo dispare
-    // el evento (paste, autofill, o un comportamiento inesperado del
-    // navegador), el estado nunca acepta cambios estando bloqueado.
     if (codigoBloqueado) return;
 
     setCodigo(valor);
@@ -206,7 +209,7 @@ export function LoginPage() {
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <NavLink to="/" className="inline-block rounded-sm">
-            <Logo size={128} variant="gradient" />
+            <Logo size={64} variant="gradient" />
           </NavLink>
 
           <p className="mt-4 text-sm text-espresso/60">
@@ -237,7 +240,7 @@ export function LoginPage() {
               onVolver={() => irAPaso("telefono")}
               onReenviar={handleReenviarCodigo}
               cooldownReenvio={cooldownActivo}
-              intentosRestantes={MAX_INTENTOS_CODIGO - intentosCodigo}
+              intentosRestantes={intentosRestantes}
               codigoBloqueado={codigoBloqueado}
               resetKey={otpResetKey}
               estado={estadoVerificacion}

@@ -10,7 +10,7 @@ interface CodeStepProps {
   onVolver: () => void;
   onReenviar: () => void;
   cooldownReenvio: number;
-  intentosRestantes: number;
+  intentosRestantes: number | null;
   codigoBloqueado: boolean;
   resetKey: number;
   estado: EstadoVerificacion;
@@ -77,8 +77,14 @@ export function CodeStep({
 
         {mostrarError && (
           <p className="text-center text-xs text-rosewood">
-            {error} — te quedan {intentosRestantes}{" "}
-            {intentosRestantes === 1 ? "intento" : "intentos"}.
+            {error}
+            {intentosRestantes !== null && (
+              <>
+                {" "}
+                — te quedan {intentosRestantes}{" "}
+                {intentosRestantes === 1 ? "intento" : "intentos"}.
+              </>
+            )}
           </p>
         )}
 
