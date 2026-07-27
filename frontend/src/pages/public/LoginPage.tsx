@@ -1,4 +1,3 @@
-//Turnify\frontend\src\pages\public\LoginPage.tsx
 import { useEffect, useState, type FormEvent } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 
@@ -13,6 +12,7 @@ import { useAuthStore } from "../../stores/authStore";
 import { useOtpFlowStore } from "../../stores/otpFlowStore";
 import { extraerMensajeError } from "../../utils/extraerMensajeError";
 
+type LoginStep = "telefono" | "codigo" | "registro" | "credenciales";
 const MAX_INTENTOS_CODIGO = 3;
 type EstadoVerificacion = "idle" | "verificando" | "correcto" | "incorrecto";
 
@@ -26,8 +26,10 @@ export function LoginPage() {
   const registrarIntentoOtp = useOtpFlowStore(
     (state) => state.registrarIntento,
   );
-  const step = useOtpFlowStore((state) => state.step);
-  const setStep = useOtpFlowStore((state) => state.setStep);
+
+  // Siempre arranca en "telefono", sin importar qué haya pasado antes en
+  // otra sesión de login — esto es intencional (ver mensaje de la sesión).
+  const [step, setStep] = useState<LoginStep>("telefono");
 
   const [codigo, setCodigo] = useState("");
   const [identificador, setIdentificador] = useState("");
@@ -46,19 +48,37 @@ export function LoginPage() {
   const [ahora, setAhora] = useState(0);
 
   useEffect(() => {
-    const sincronizar = () => setAhora(Date.now());
-    sincronizar();
+    let frameId: number;
+    let ultimoTick = 0;
+    let esPrimerFrame = true;
 
-    if (cooldownHasta <= Date.now()) return;
+    function tick(marcaTiempo: number) {
+      const ahoraReal = Date.now();
+      const terminado = ahoraReal >= cooldownHasta;
 
-    const intervalo = setInterval(sincronizar, 1000);
-    return () => clearInterval(intervalo);
+      // Siempre sincroniza en el primer frame Y en el frame donde el cooldown
+      // termina — así nunca se detiene el loop sin haber reflejado el valor
+      // final real (que es lo que causaba el "1s" congelado para siempre).
+      if (esPrimerFrame || terminado || marcaTiempo - ultimoTick >= 250) {
+        esPrimerFrame = false;
+        ultimoTick = marcaTiempo;
+        setAhora(ahoraReal);
+      }
+
+      if (!terminado) {
+        frameId = requestAnimationFrame(tick);
+      }
+    }
+
+    frameId = requestAnimationFrame(tick);
+
+    return () => cancelAnimationFrame(frameId);
   }, [cooldownHasta]);
 
   const cooldownActivo =
     ahora === 0 ? 0 : Math.max(0, Math.ceil((cooldownHasta - ahora) / 1000));
 
-  function irAPaso(nuevoPaso: typeof step) {
+  function irAPaso(nuevoPaso: LoginStep) {
     setError(null);
     setEstadoVerificacion("idle");
     setStep(nuevoPaso);
@@ -138,16 +158,15 @@ export function LoginPage() {
     }
   }
 
-  // Se dispara directo desde el evento de tipeo (no desde un efecto): al
-  // completar los 6 dígitos, arranca la verificación sin botón manual.
   function handleCodigoChange(valor: string) {
+    // Segunda barrera además del `disabled` del input: aunque algo dispare
+    // el evento (paste, autofill, o un comportamiento inesperado del
+    // navegador), el estado nunca acepta cambios estando bloqueado.
+    if (codigoBloqueado) return;
+
     setCodigo(valor);
 
-    if (
-      valor.length === 6 &&
-      estadoVerificacion === "idle" &&
-      !codigoBloqueado
-    ) {
+    if (valor.length === 6 && estadoVerificacion === "idle") {
       verificarCodigo(valor);
     }
   }
@@ -182,7 +201,6 @@ export function LoginPage() {
     console.log("Login con usuario/contraseña pendiente");
   }
 
-  
   return (
     <div className="flex min-h-screen items-center justify-center bg-blush px-6 py-12 font-sans text-espresso">
       <div className="w-full max-w-md">

@@ -42,6 +42,8 @@ export function OtpInput({
   }
 
   function handleChange(index: number, e: ChangeEvent<HTMLInputElement>) {
+    if (soloLectura) return;
+
     const soloNumeros = e.target.value.replace(/\D/g, "");
 
     if (soloNumeros.length > 1) {
@@ -87,6 +89,8 @@ export function OtpInput({
 
   function handlePaste(e: ClipboardEvent<HTMLInputElement>) {
     e.preventDefault();
+    if (soloLectura) return;
+
     const pegado = e.clipboardData.getData("text").replace(/\D/g, "");
     const nuevosDigitos = Array.from({ length }, (_, i) => pegado[i] ?? "");
     actualizar(nuevosDigitos);
