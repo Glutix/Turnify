@@ -21,53 +21,64 @@ body {
 }
 
 /* ─── Animaciones del OTP ────────────────────────────────── */
-@keyframes spin-led {
+
+@keyframes otp-snake {
   to {
-    transform: rotate(360deg);
+    stroke-dashoffset: -1;
   }
 }
 
-@keyframes otp-icon-pop {
-  0% {
-    transform: scale(0.4);
-    opacity: 0;
-  }
-
-  70% {
-    transform: scale(1.1);
-    opacity: 1;
-  }
-
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-.otp-icon-pop {
-  animation: otp-icon-pop 0.35s ease-out both;
-}
-
-/* Anillo tipo "luz LED girando" alrededor del grupo de casillas */
-.otp-ring-verificando {
+.otp-box-ring {
   position: relative;
 }
 
-.otp-ring-verificando::before {
+.otp-box-ring::before {
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 1rem;
-  padding: 2px;
+  border-radius: 0.75rem;
+  /* mismo radio que rounded-xl del input */
+  padding: 1.5px;
+  /* grosor de la "víbora" pegada al borde real */
   background: conic-gradient(from 0deg,
       transparent 0%,
-      var(--color-oro) 25%,
-      var(--color-rosewood) 50%,
-      transparent 75%);
+      transparent 78%,
+      var(--ring-color, var(--color-oro)) 92%,
+      color-mix(in srgb, var(--ring-color, var(--color-oro)) 60%, transparent) 96%,
+      transparent 100%);
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   animation: spin-led 1.1s linear infinite;
+}
+
+/* Halo estático: varios anillos concéntricos apilados como box-shadow,
+   el más cercano al círculo más intenso, degradando hacia afuera. */
+.otp-halo {
+  box-shadow:
+    0 0 0 6px color-mix(in srgb, var(--ring-color) 35%, transparent),
+    0 0 0 14px color-mix(in srgb, var(--ring-color) 20%, transparent),
+    0 0 0 24px color-mix(in srgb, var(--ring-color) 10%, transparent),
+    0 0 0 38px color-mix(in srgb, var(--ring-color) 4%, transparent);
+  transition: box-shadow 500ms ease;
+}
+
+
+/* Resplandor amplio de fondo en toda la tarjeta (no solo alrededor del
+   ícono) — radial-gradient centrado, con delay para aparecer junto con
+   el halo del ícono (~1100ms después de iniciar la fusión). */
+.card-glow {
+  background: radial-gradient(circle at center,
+      color-mix(in srgb, var(--glow-color) 22%, transparent) 0%,
+      color-mix(in srgb, var(--glow-color) 10%, transparent) 35%,
+      transparent 70%);
+  opacity: 0;
+  transition: opacity 700ms ease 700ms;
+  pointer-events: none;
+}
+
+.card-glow.activo {
+  opacity: 1;
 }

@@ -125,9 +125,19 @@ export function LoginPage() {
     await solicitarCodigo();
   }
 
+  const MIN_VERIFICANDO_MS = 900; // ~1 vuelta del anillo, aunque el backend responda antes
+
+  function esperarRestante(inicio: number, minimoMs: number) {
+    const faltante = minimoMs - (Date.now() - inicio);
+    return faltante > 0
+      ? new Promise((resolve) => setTimeout(resolve, faltante))
+      : Promise.resolve();
+  }
+
   async function verificarCodigo(codigoAVerificar: string) {
     setError(null);
     setEstadoVerificacion("verificando");
+    const inicio = Date.now();
 
     try {
       const { data } = await api.post("/auth/validar-codigo", {
@@ -135,6 +145,7 @@ export function LoginPage() {
         codigo: codigoAVerificar,
       });
 
+      await esperarRestante(inicio, MIN_VERIFICANDO_MS);
       setEstadoVerificacion("correcto");
 
       setTimeout(() => {
@@ -145,7 +156,7 @@ export function LoginPage() {
         }
         setAuth(data.usuario, data.token);
         redirigirSegunRol(data.usuario.rol);
-      }, 1100);
+      }, 1900);
     } catch (err) {
       setError(extraerMensajeError(err, "Código incorrecto o expirado."));
 
@@ -154,13 +165,14 @@ export function LoginPage() {
         setIntentosRestantes(restantes);
       }
 
+      await esperarRestante(inicio, MIN_VERIFICANDO_MS);
       setEstadoVerificacion("incorrecto");
 
       setTimeout(() => {
         setCodigo("");
         setOtpResetKey((k) => k + 1);
         setEstadoVerificacion("idle");
-      }, 1100);
+      }, 1900);
     }
   }
 
