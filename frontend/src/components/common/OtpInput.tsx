@@ -103,15 +103,47 @@ export function OtpInput({
   }
 
   function handleKeyDown(index: number, e: KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Backspace" && !digitos[index] && index > 0) {
+    if (soloLectura) return;
+
+    // Dígito nuevo: reemplaza directo el valor de la casilla actual, sin
+    // importar si ya tenía algo escrito ni dónde está posicionado el
+    // cursor — evita depender de la selección nativa del input, que es
+    // justo lo que causaba que hubiera que borrar antes de poder tipear.
+    if (/^[0-9]$/.test(e.key)) {
+      e.preventDefault();
       const nuevosDigitos = [...digitos];
-      nuevosDigitos[index - 1] = "";
+      nuevosDigitos[index] = e.key;
       actualizar(nuevosDigitos);
-      inputsRef.current[index - 1]?.focus();
+      if (index < length - 1) {
+        inputsRef.current[index + 1]?.focus();
+      }
+      return;
     }
+
+    if (e.key === "Backspace") {
+      e.preventDefault();
+      if (digitos[index]) {
+        // Si la casilla actual tiene contenido, lo borra y se queda ahí.
+        const nuevosDigitos = [...digitos];
+        nuevosDigitos[index] = "";
+        actualizar(nuevosDigitos);
+        return;
+      }
+      // Si ya estaba vacía, borra la anterior y mueve el foco hacia atrás
+      // (comportamiento típico de "backspace en cascada" de un OTP).
+      if (index > 0) {
+        const nuevosDigitos = [...digitos];
+        nuevosDigitos[index - 1] = "";
+        actualizar(nuevosDigitos);
+        inputsRef.current[index - 1]?.focus();
+      }
+      return;
+    }
+
     if (e.key === "ArrowLeft" && index > 0) {
       inputsRef.current[index - 1]?.focus();
     }
+
     if (e.key === "ArrowRight" && index < length - 1) {
       inputsRef.current[index + 1]?.focus();
     }

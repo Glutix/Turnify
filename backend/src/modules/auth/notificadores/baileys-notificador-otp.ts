@@ -52,12 +52,11 @@ export class BaileysNotificadorOtp
         const motivo = (lastDisconnect?.error as Boom)?.output?.statusCode;
         const sesionInvalida = motivo === DisconnectReason.loggedOut;
 
-        this.logger.warn(`Conexión cerrada. Reconectando: ${!sesionInvalida}`);
+        this.logger.warn(
+          `Conexión cerrada (código: ${motivo}). Reconectando: ${!sesionInvalida}`,
+        );
 
         if (sesionInvalida) {
-          // Las credenciales guardadas ya no sirven (se cerró sesión desde
-          // el teléfono, o expiró). Las borramos para forzar un QR nuevo
-          // en vez de quedar trabados sin reconectar nunca más.
           this.reiniciarSesion();
           return;
         }

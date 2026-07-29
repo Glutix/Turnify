@@ -88,6 +88,11 @@ MERCADOPAGO_ACCESS_TOKEN=""
 
 # ─── CORS ────────────────────────────────────────────────────
 FRONTEND_URL="http://localhost:5173"
+
+# ─── CREDENCIALES DE ADMIN ───────────────────────────────────
+ADMIN_NOMBRE="Juan"
+ADMIN_APELLIDO="Perez"
+ADMIN_TELEFONO="+5493644123456"
 ```
 
 > ⚠️ El archivo `.env` está incluido en el `.gitignore` y nunca debe subirse al repositorio. Las credenciales reales se comparten entre el equipo de forma privada.
@@ -333,6 +338,8 @@ Si el frontend corre en un puerto distinto o en producción desde otra URL, actu
 | `pnpm run test`       | Ejecuta los tests unitarios                |
 | `pnpm run test:e2e`   | Ejecuta los tests end-to-end               |
 | `pnpm run test:cov`   | Ejecuta los tests con reporte de cobertura |
+| `pnpm run db:reset`   | Resetea todos los datos que hay en la DB   |
+| `pnpm run seed`       | Cargan datos iniciales en la DB            |
 
 ### Prisma
 
@@ -369,6 +376,9 @@ Esto aplica las migraciones nuevas y regenera el cliente en tu máquina. Sin est
 | `FRONTEND_URL`             | Sí        | URL del frontend — usada para configurar CORS |
 | `JWT_SECRET`               | Sí        | Clave secreta para firmar tokens JWT          |
 | `JWT_EXPIRES_IN`           | Sí        | Duración del token (ej: `7d`, `24h`)          |
+| `ADMIN_NOMBRE`             | Sí        | Nombre para el seed de admin (ej: `Juan`)     |
+| `ADMIN_APELLIDO`           | Sí        | Apellido para el seed de admin (ej: `Perez`)  |
+| `ADMIN_TELEFONO`           | Sí        | Tel. para el seed de admin (ej: `3644-xxxxxx`)|
 | `WHATSAPP_API_URL`         | No*       | URL base de la WhatsApp Business API          |
 | `WHATSAPP_TOKEN`           | No*       | Token de autenticación de Meta                |
 | `WHATSAPP_PHONE_NUMBER_ID` | No*       | ID del número de teléfono en Meta             |
@@ -376,6 +386,8 @@ Esto aplica las migraciones nuevas y regenera el cliente en tu máquina. Sin est
 | `CLOUDINARY_API_KEY`       | No*       | API Key de Cloudinary                         |
 | `CLOUDINARY_API_SECRET`    | No*       | API Secret de Cloudinary                      |
 | `MERCADOPAGO_ACCESS_TOKEN` | No*       | Access token de MercadoPago                   |
+
+
 
 > *No requeridas para desarrollo local básico, pero necesarias para las funcionalidades de notificaciones, imágenes y pagos.
 
