@@ -165,11 +165,23 @@ export class HorariosService {
     });
   }
 
-  // Nota: NO aplica excepciones_horario acá (eso son otros métodos, más
-  // abajo). Cuando armemos turnos coordinamos si conviene combinarlos.
+  // Nota: NO aplica excepciones_horario acá — para eso está
+  // obtenerExcepcionesParaFecha, justo abajo. Turnos combina las dos.
   async obtenerFranjasActivasPorFecha(fecha: Date): Promise<FranjaHoraria[]> {
     const diaSemana = DIA_POR_DOW[fecha.getUTCDay()];
     return this.obtenerFranjasActivasPorDia(diaSemana);
+  }
+
+  // Para turnos (CU-06/RF04/RF06): excepciones vigentes para una fecha
+  // puntual (feriados, cierres, horarios especiales). Puede devolver más
+  // de una si se solapan rangos cargados por la admin.
+  async obtenerExcepcionesParaFecha(fecha: Date): Promise<ExcepcionHorario[]> {
+    return this.prisma.excepcionHorario.findMany({
+      where: {
+        fecha_desde: { lte: fecha },
+        fecha_hasta: { gte: fecha },
+      },
+    });
   }
 
   // ============================================================
@@ -343,7 +355,7 @@ export class HorariosService {
 
     const turnosEnConflicto = await this.consultarTurnosEnConflicto(
       Prisma.sql`
-        SELECT id FROM "Turno"
+        SELECT id FROM "turnos"
         WHERE estado IN ('confirmado', 'reprogramado')
           AND fecha_hora_inicio >= NOW()
           AND EXTRACT(DOW FROM fecha_hora_inicio) = ${dow}
@@ -376,14 +388,14 @@ export class HorariosService {
     const turnosEnConflicto = await this.consultarTurnosEnConflicto(
       esBloqueoTotal
         ? Prisma.sql`
-            SELECT id FROM "Turno"
+            SELECT id FROM "turnos"
             WHERE estado IN ('confirmado', 'reprogramado')
               AND fecha_hora_inicio >= NOW()
               AND fecha_hora_inicio::date BETWEEN ${fechaDesde}::date AND ${fechaHasta}::date
             LIMIT 1
           `
         : Prisma.sql`
-            SELECT id FROM "Turno"
+            SELECT id FROM "turnos"
             WHERE estado IN ('confirmado', 'reprogramado')
               AND fecha_hora_inicio >= NOW()
               AND fecha_hora_inicio::date BETWEEN ${fechaDesde}::date AND ${fechaHasta}::date

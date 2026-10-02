@@ -14,8 +14,12 @@ import {
   ParseIntPipe, // Convierte el :id de string a number automáticamente
 } from "@nestjs/common";
 import { UsuariosService } from "./usuarios.service";
-import { type CrearUsuarioDto } from "./dto/crear-usuario.dto";
-import { type ActualizarUsuarioDto } from "./dto/actualizar-usuario.dto";
+// OJO: sin "type" a propósito (ver fix de horarios.controller.ts). Estos
+// DTOs son parámetros de @Body(), y ValidationPipe necesita la clase real
+// en runtime para validar — con "import type" Nest los ve como "Object" y,
+// con whitelist:true, termina vaciando el body entero sin tirar error.
+import { CrearUsuarioDto } from "./dto/crear-usuario.dto";
+import { ActualizarUsuarioDto } from "./dto/actualizar-usuario.dto";
 
 // El prefijo 'usuarios' se aplica a todas las rutas de este controller.
 // Es decir: GET /usuarios, POST /usuarios, GET /usuarios/:id, etc.

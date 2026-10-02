@@ -9,8 +9,8 @@ import {
   ConflictException,
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
-import { type CrearCategoriaDto } from "./dto/crear-categoria.dto";
-import { type ActualizarCategoriaDto } from "./dto/actualizar-categoria.dto";
+import { CrearCategoriaDto } from "./dto/crear-categoria.dto";
+import { ActualizarCategoriaDto } from "./dto/actualizar-categoria.dto";
 import { PrismaService } from "../../prisma/prisma.service";
 
 @Injectable()

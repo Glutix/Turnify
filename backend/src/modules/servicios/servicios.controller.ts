@@ -13,8 +13,8 @@ import {
   ParseIntPipe,
 } from "@nestjs/common";
 import { ServiciosService } from "./servicios.service";
-import { type CrearServicioDto } from "./dto/crear-servicio.dto";
-import { type ActualizarServicioDto } from "./dto/actualizar-servicio.dto";
+import { CrearServicioDto } from "./dto/crear-servicio.dto";
+import { ActualizarServicioDto } from "./dto/actualizar-servicio.dto";
 
 // El prefijo 'servicios' se aplica a todas las rutas de este controller.
 @Controller("servicios")
