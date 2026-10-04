@@ -2,6 +2,7 @@ import { Test, type TestingModule } from "@nestjs/testing";
 import { type DiaSemana } from "@prisma/client";
 import { HorariosController } from "./horarios.controller";
 import { HorariosService } from "./horarios.service";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { type CrearFranjaHorariaDto } from "./dto/crear-franja-horaria.dto";
 import { type ActualizarFranjaHorariaDto } from "./dto/actualizar-franja-horaria.dto";
 import { type CrearExcepcionHorarioDto } from "./dto/crear-excepcion-horario.dto";
@@ -36,7 +37,12 @@ describe("HorariosController", () => {
       providers: [
         { provide: HorariosService, useValue: horariosServiceMock },
       ],
-    }).compile();
+    })
+      // Los guards se prueban aparte (auth/guards/*.spec.ts); acá solo importa
+      // que el controller delegue bien, así que se los deja pasar.
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<HorariosController>(HorariosController);
   });

@@ -1,5 +1,5 @@
 // frontend\src\pages\public\TurnosPage.tsx
-import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { isAxiosError } from "axios";
 import { Button } from "../../components/common/Button";
 import { Input } from "../../components/common/Input";
@@ -64,69 +64,83 @@ export function TurnosPage() {
 
   const reservarTurno = useReservarTurno();
 
-  function confirmarReserva() {
-    if (!horaSeleccionada) return;
-    setEstadoOtp("verificando");
-    reservarTurno.mutate(
-      {
-        servicios: serviciosSeleccionados,
-        fecha,
-        hora_inicio: horaSeleccionada,
-        nombre,
-        telefono,
-        codigo,
-      },
-      {
-        onSuccess: (turno) => {
-          setEstadoOtp("correcto");
-          window.setTimeout(() => {
-            setTurnoConfirmado(turno);
-            setPaso("exito");
-          }, 1400);
+  // Recibe el código como parámetro explícito (no lo lee de estado) a
+  // propósito: se llama inmediatamente después de setCodigo(valor) en
+  // manejarCambioCodigo, más abajo, y el estado todavía no se actualizó en
+  // ese mismo tick — leer `codigo` del closure ahí daría el valor viejo.
+  const confirmarReserva = useCallback(
+    (codigoIngresado: string) => {
+      if (!horaSeleccionada) return;
+      setEstadoOtp("verificando");
+      reservarTurno.mutate(
+        {
+          servicios: serviciosSeleccionados,
+          fecha,
+          hora_inicio: horaSeleccionada,
+          nombre,
+          telefono,
+          codigo: codigoIngresado,
         },
-        onError: (error) => {
-          // 409: el horario se ocupó justo en este momento (carrera entre
-          // consultar disponibilidad y confirmar) — no es un error de OTP.
-          if (isAxiosError(error) && error.response?.status === 409) {
-            setEstadoOtp("idle");
-            setCodigo("");
-            setMensajeHorario(
-              error.response.data?.message ?? "Ese horario ya no está disponible, elegí otro.",
-            );
-            setPaso("horario");
-            return;
-          }
+        {
+          onSuccess: (turno) => {
+            setEstadoOtp("correcto");
+            window.setTimeout(() => {
+              setTurnoConfirmado(turno);
+              setPaso("exito");
+            }, 1400);
+          },
+          onError: (error) => {
+            // 409: el horario se ocupó justo en este momento (carrera entre
+            // consultar disponibilidad y confirmar) — no es un error de OTP.
+            if (isAxiosError(error) && error.response?.status === 409) {
+              setEstadoOtp("idle");
+              setCodigo("");
+              setMensajeHorario(
+                error.response.data?.message ?? "Ese horario ya no está disponible, elegí otro.",
+              );
+              setPaso("horario");
+              return;
+            }
 
-          const data = isAxiosError(error) ? error.response?.data : undefined;
-          const intentos = typeof data?.intentosRestantes === "number" ? data.intentosRestantes : null;
-          setIntentosRestantes(intentos);
-          setCodigoBloqueado(intentos === 0);
-          setErrorOtp(data?.message ?? "No se pudo validar el código");
-          setEstadoOtp("incorrecto");
-          window.setTimeout(() => {
-            setEstadoOtp("idle");
-            setCodigo("");
-            setResetKeyOtp((k) => k + 1);
-          }, 900);
+            const data = isAxiosError(error) ? error.response?.data : undefined;
+            const intentos =
+              typeof data?.intentosRestantes === "number" ? data.intentosRestantes : null;
+            setIntentosRestantes(intentos);
+            setCodigoBloqueado(intentos === 0);
+            setErrorOtp(data?.message ?? "No se pudo validar el código");
+            setEstadoOtp("incorrecto");
+            window.setTimeout(() => {
+              setEstadoOtp("idle");
+              setCodigo("");
+              setResetKeyOtp((k) => k + 1);
+            }, 900);
+          },
         },
-      },
-    );
+      );
+    },
+    [horaSeleccionada, serviciosSeleccionados, fecha, nombre, telefono, reservarTurno],
+  );
+
+  // Dispara el envío automático al completar los 6 dígitos. Vive en el
+  // handler de onChange (un evento real del usuario) en vez de en un
+  // useEffect reaccionando a que `codigo` cambió — evita el lint
+  // react-hooks/set-state-in-effect (llamar algo que hace setState de forma
+  // síncrona dentro de un efecto) y de paso evita el problema del closure
+  // desactualizado que tendría un efecto leyendo `codigo` del estado.
+  function manejarCambioCodigo(valor: string) {
+    setCodigo(valor);
+    if (valor.length === LARGO_CODIGO && estadoOtp === "idle" && !codigoBloqueado) {
+      confirmarReserva(valor);
+    }
   }
 
-  // Countdown del cooldown de reenvío de OTP.
+  // Countdown del cooldown de reenvío de OTP. Este sí es un caso legítimo de
+  // useEffect (sincroniza con el timer del navegador, un sistema externo).
   useEffect(() => {
     if (cooldownReenvio <= 0) return;
     const id = window.setInterval(() => setCooldownReenvio((c) => Math.max(c - 1, 0)), 1000);
     return () => clearInterval(id);
   }, [cooldownReenvio]);
-
-  // Envía automáticamente cuando se completan los 6 dígitos (mismo UX que login).
-  useEffect(() => {
-    if (codigo.length === LARGO_CODIGO && estadoOtp === "idle" && !codigoBloqueado) {
-      confirmarReserva();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [codigo]);
 
   const serviciosElegidos = servicios.filter((s) => serviciosSeleccionados.includes(s.id));
   const duracionTotal = serviciosElegidos.reduce((acc, s) => acc + s.duracion_minutos, 0);
@@ -411,7 +425,7 @@ export function TurnosPage() {
         <CodeStep
           telefono={telefono}
           codigo={codigo}
-          onCodigoChange={setCodigo}
+          onCodigoChange={manejarCambioCodigo}
           onVolver={() => setPaso("datos")}
           onReenviar={handleReenviar}
           cooldownReenvio={cooldownReenvio}

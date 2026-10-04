@@ -12,6 +12,7 @@ import {
 import { ApiTags, ApiOperation, ApiQuery } from "@nestjs/swagger";
 import { DiaSemana } from "@prisma/client";
 import { HorariosService } from "./horarios.service";
+import { SoloAdmin } from "../auth/decorators/auth.decorators";
 // OJO: estos 4 imports NO llevan "type" a propósito. Son los DTOs de los
 // parámetros @Body() de este controller, y ValidationPipe necesita la
 // referencia real de la clase en runtime (vía emitDecoratorMetadata) para
@@ -27,6 +28,8 @@ import { ActualizarExcepcionHorarioDto } from "./dto/actualizar-excepcion-horari
 // El prefijo 'horarios' se aplica a todas las rutas de este controller:
 // GET/POST /horarios/franjas..., GET/POST /horarios/excepciones...
 @ApiTags("horarios")
+// Todo el CRUD de horarios es del panel admin: login obligatorio y rol admin.
+@SoloAdmin()
 @Controller("horarios")
 export class HorariosController {
   constructor(private readonly horariosService: HorariosService) {}

@@ -2,6 +2,8 @@ import api from "./axios";
 import type {
   Turno,
   SlotDisponible,
+  FiltrosTurnosAdmin,
+  TurnosPaginados,
   ReservarTurnoPayload,
   ReservarTurnoAdminPayload,
   ReprogramarTurnoAdminPayload,
@@ -46,6 +48,15 @@ export async function reprogramarTurno(
 
 export async function obtenerAgenda(fecha?: string): Promise<Turno[]> {
   const { data } = await api.get("/turnos/admin/agenda", { params: fecha ? { fecha } : {} });
+  return data;
+}
+
+export async function listarTurnosAdmin(filtros: FiltrosTurnosAdmin): Promise<TurnosPaginados> {
+  // Se descartan los filtros vacíos para no mandar "estado=" al backend.
+  const params = Object.fromEntries(
+    Object.entries(filtros).filter(([, valor]) => valor !== undefined && valor !== ""),
+  );
+  const { data } = await api.get("/turnos/admin", { params });
   return data;
 }
 

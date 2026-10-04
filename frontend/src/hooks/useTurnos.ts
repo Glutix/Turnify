@@ -1,6 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   obtenerAgenda,
+  listarTurnosAdmin,
   cancelarTurnoAdmin,
   reprogramarTurnoAdmin,
   marcarAtendido,
@@ -10,12 +11,16 @@ import {
   reservarTurno,
 } from "../api/turnos";
 import type {
+  FiltrosTurnosAdmin,
   ReprogramarTurnoAdminPayload,
   ReservarTurnoAdminPayload,
   ReservarTurnoPayload,
 } from "../types/turno";
 
 const QUERY_KEY_AGENDA = ["turnos", "agenda"];
+// Raíz común: las mutations invalidan TODO lo de turnos (agenda, listado admin,
+// disponibilidad), así las dos páginas admin quedan siempre sincronizadas.
+const QUERY_KEY_TURNOS = ["turnos"];
 
 // --- Público / invitado (CU-06 / CU-07) ---
 
@@ -40,11 +45,19 @@ export function useAgenda(fecha?: string) {
   });
 }
 
+export function useTurnosAdmin(filtros: FiltrosTurnosAdmin) {
+  return useQuery({
+    queryKey: ["turnos", "admin", filtros],
+    queryFn: () => listarTurnosAdmin(filtros),
+    placeholderData: keepPreviousData,
+  });
+}
+
 export function useCancelarTurnoAdmin() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => cancelarTurnoAdmin(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY_AGENDA }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY_TURNOS }),
   });
 }
 
@@ -53,7 +66,7 @@ export function useReprogramarTurnoAdmin() {
   return useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: ReprogramarTurnoAdminPayload }) =>
       reprogramarTurnoAdmin(id, payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY_AGENDA }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY_TURNOS }),
   });
 }
 
@@ -61,7 +74,7 @@ export function useMarcarAtendido() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => marcarAtendido(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY_AGENDA }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY_TURNOS }),
   });
 }
 
@@ -69,7 +82,7 @@ export function useReservarTurnoAdmin() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: ReservarTurnoAdminPayload) => reservarTurnoAdmin(payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY_AGENDA }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY_TURNOS }),
   });
 }
 

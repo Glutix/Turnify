@@ -121,7 +121,10 @@ CREATE DATABASE turnify;
 ```bash
 pnpm dlx prisma migrate deploy
 ```
-
+ó
+```bash
+pnpm exec prisma migrate deploy
+```
 Este comando lee el historial de migraciones en `prisma/migrations/` y aplica todos los cambios a la base de datos. Las tablas quedan creadas automáticamente.
 
 ### 6. Generar el cliente de Prisma
@@ -129,7 +132,10 @@ Este comando lee el historial de migraciones en `prisma/migrations/` y aplica to
 ```bash
 pnpm dlx prisma generate
 ```
-
+ó
+```bash
+pnpm exec prisma generate
+```
 Este comando genera los tipos TypeScript a partir del `schema.prisma`. Es necesario ejecutarlo cada vez que el schema cambie.
 
 ---

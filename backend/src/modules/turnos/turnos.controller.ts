@@ -11,6 +11,7 @@ import {
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiQuery } from "@nestjs/swagger";
 import { TurnosService } from "./turnos.service";
+import { SoloAdmin } from "../auth/decorators/auth.decorators";
 // Sin "type" en estos 4 (son los DTOs de @Body() de este controller — ver
 // el bug que ya resolvimos en horarios/usuarios con ValidationPipe).
 import { ReservarTurnoDto } from "./dto/reservar-turno.dto";
@@ -18,6 +19,8 @@ import { CancelarTurnoDto } from "./dto/cancelar-turno.dto";
 import { ReprogramarTurnoDto } from "./dto/reprogramar-turno.dto";
 import { ReservarTurnoAdminDto } from "./dto/reservar-turno-admin.dto";
 import { ReprogramarTurnoAdminDto } from "./dto/reprogramar-turno-admin.dto";
+// Sin "type": es el DTO de @Query() y ValidationPipe necesita la clase real.
+import { ListarTurnosAdminDto } from "./dto/listar-turnos-admin.dto";
 
 @ApiTags("turnos")
 @Controller("turnos")
@@ -79,9 +82,10 @@ export class TurnosController {
 
   // ============================================================
   // Administración (CU-20, CU-28, CU-40, CU-41, CU-42)
-  // TODO: sin guard de autenticación todavía — ver nota en turnos.service.ts
+  // Protegido con @SoloAdmin() (JWT + rol admin).
   // ============================================================
 
+  @SoloAdmin()
   @Get("admin/agenda")
   @ApiOperation({ summary: "Agenda de turnos de un día (CU-20/RF31)" })
   @ApiQuery({ name: "fecha", required: false, example: "2026-10-15" })
@@ -89,18 +93,28 @@ export class TurnosController {
     return this.turnosService.agendaAdmin(fecha);
   }
 
+  @SoloAdmin()
+  @Get("admin")
+  @ApiOperation({ summary: "Listado de todos los turnos con filtros y paginación (gestión admin)" })
+  listarAdmin(@Query() filtros: ListarTurnosAdminDto) {
+    return this.turnosService.listarAdmin(filtros);
+  }
+
+  @SoloAdmin()
   @Post("admin/reservar")
   @ApiOperation({ summary: "Cargar turno manualmente desde el panel, sin OTP (CU-41)" })
   reservarDesdeAdmin(@Body() dto: ReservarTurnoAdminDto) {
     return this.turnosService.reservarComoAdmin(dto);
   }
 
+  @SoloAdmin()
   @Patch(":id/cancelar-admin")
   @ApiOperation({ summary: "Cancelar turno desde el panel, sin regla de 12hs (CU-40)" })
   cancelarDesdeAdmin(@Param("id", ParseIntPipe) id: number) {
     return this.turnosService.cancelarComoAdmin(id);
   }
 
+  @SoloAdmin()
   @Patch(":id/reprogramar-admin")
   @ApiOperation({ summary: "Reprogramar turno desde el panel, sin regla de 12hs (CU-42)" })
   reprogramarDesdeAdmin(
@@ -110,12 +124,14 @@ export class TurnosController {
     return this.turnosService.reprogramarComoAdmin(id, dto.fecha, dto.hora_inicio);
   }
 
+  @SoloAdmin()
   @Patch(":id/atendido")
   @ApiOperation({ summary: "Marcar un turno como atendido (CU-20)" })
   marcarAtendido(@Param("id", ParseIntPipe) id: number) {
     return this.turnosService.marcarAtendido(id);
   }
 
+  @SoloAdmin()
   @Get("admin/clientes/:usuarioId/historial")
   @ApiOperation({ summary: "Historial de turnos de un cliente puntual (CU-28/RF43)" })
   historialPorUsuario(@Param("usuarioId", ParseIntPipe) usuarioId: number) {

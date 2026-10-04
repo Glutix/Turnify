@@ -341,7 +341,7 @@ export class HorariosService {
     return fecha.toISOString().substring(11, 16);
   }
 
-  // RF41 / CU-21 (franjas): busca turnos confirmados o reprogramados,
+  // RF41 / CU-21 (franjas): busca turnos confirmados (un turno reprogramado ya no ocupa su horario viejo),
   // futuros, cuyo día de semana y horario caigan dentro del rango de la
   // franja. Si existen, bloquea el cambio hasta que se resuelvan a mano.
   private async asegurarSinTurnosEnConflicto(
@@ -356,7 +356,7 @@ export class HorariosService {
     const turnosEnConflicto = await this.consultarTurnosEnConflicto(
       Prisma.sql`
         SELECT id FROM "turnos"
-        WHERE estado IN ('confirmado', 'reprogramado')
+        WHERE estado = 'confirmado'
           AND fecha_hora_inicio >= NOW()
           AND EXTRACT(DOW FROM fecha_hora_inicio) = ${dow}
           AND TO_CHAR(fecha_hora_inicio, 'HH24:MI') >= ${horaInicioHHmm}
@@ -389,14 +389,14 @@ export class HorariosService {
       esBloqueoTotal
         ? Prisma.sql`
             SELECT id FROM "turnos"
-            WHERE estado IN ('confirmado', 'reprogramado')
+            WHERE estado = 'confirmado'
               AND fecha_hora_inicio >= NOW()
               AND fecha_hora_inicio::date BETWEEN ${fechaDesde}::date AND ${fechaHasta}::date
             LIMIT 1
           `
         : Prisma.sql`
             SELECT id FROM "turnos"
-            WHERE estado IN ('confirmado', 'reprogramado')
+            WHERE estado = 'confirmado'
               AND fecha_hora_inicio >= NOW()
               AND fecha_hora_inicio::date BETWEEN ${fechaDesde}::date AND ${fechaHasta}::date
               AND TO_CHAR(fecha_hora_inicio, 'HH24:MI') >= ${horaInicio}
