@@ -5,11 +5,12 @@
 import { Module } from "@nestjs/common";
 import { UsuariosController } from "./usuarios.controller";
 import { UsuariosService } from "./usuarios.service";
+import { AuthModule } from "../auth/auth.module";
 
 @Module({
+  imports: [AuthModule], // JwtModule para los guards (JwtAuthGuard / RolesGuard)
   controllers: [UsuariosController], // Maneja las solicitudes HTTP
   providers: [UsuariosService], // Contiene la lógica de negocio
-  // Utilizarlo si es necesario
   exports: [UsuariosService], // Permite que otros módulos usen este servicio
 })
 export class UsuariosModule {}

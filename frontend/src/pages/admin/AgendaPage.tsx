@@ -118,7 +118,7 @@ export function AgendaPage() {
             {
               header: "Acciones",
               render: (t) =>
-                t.estado === "confirmado" || t.estado === "reprogramado" ? (
+                t.estado === "confirmado" ? (
                   <div className="flex gap-3">
                     <Button variant="link" onClick={() => handleMarcarAtendido(t)}>
                       Atendido

@@ -1,10 +1,11 @@
 // DTO para actualizar un usuario.
-// PartialType hace que todos los campos del DTO original sean opcionales,
-// lo cual es perfecto para PATCH (actualización parcial).
+// PartialType hace que todos los campos sean opcionales (PATCH parcial).
+// OmitType saca "rol": el rol NO se puede cambiar por este endpoint (lo puede
+// usar un cliente editando sus propios datos); tiene su propio endpoint admin.
 
-import { PartialType } from "@nestjs/mapped-types";
+import { OmitType, PartialType } from "@nestjs/mapped-types";
 import { CrearUsuarioDto } from "./crear-usuario.dto";
 
-export class ActualizarUsuarioDto extends PartialType(CrearUsuarioDto) {}
-// Hereda todos los campos de CrearUsuarioDto pero los hace opcionales.
-// Evita duplicar validaciones entre crear y actualizar.
+export class ActualizarUsuarioDto extends PartialType(
+  OmitType(CrearUsuarioDto, ["rol"] as const),
+) {}

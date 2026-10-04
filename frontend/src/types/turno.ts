@@ -61,6 +61,23 @@ export interface ReprogramarTurnoAdminPayload {
   hora_inicio: string;
 }
 
+// Filtros del listado administrativo (GET /turnos/admin). Los vacíos no se envían.
+export interface FiltrosTurnosAdmin {
+  estado?: EstadoTurno;
+  desde?: string; // "YYYY-MM-DD"
+  hasta?: string; // "YYYY-MM-DD"
+  busqueda?: string;
+  pagina?: number;
+  limite?: number;
+}
+
+export interface TurnosPaginados {
+  data: Turno[];
+  total: number;
+  pagina: number;
+  limite: number;
+}
+
 // Convierte el ISO completo del backend a algo legible en la tabla.
 export function formatearFechaHora(iso: string): { fecha: string; hora: string } {
   const d = new Date(iso);

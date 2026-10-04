@@ -6,13 +6,14 @@ import {
   UnauthorizedException,
   ConflictException,
 } from "@nestjs/common";
-import { EstadoTurno, type Usuario, type Servicio } from "@prisma/client";
+import { EstadoTurno, type Prisma, type Usuario, type Servicio } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { HorariosService } from "../horarios/horarios.service";
 import { normalizarTelefono } from "../auth/utils/normalizar-telefono";
 import { type ReservarTurnoDto } from "./dto/reservar-turno.dto";
 import { type ReprogramarTurnoDto } from "./dto/reprogramar-turno.dto";
 import { type ReservarTurnoAdminDto } from "./dto/reservar-turno-admin.dto";
+import { type ListarTurnosAdminDto } from "./dto/listar-turnos-admin.dto";
 import {
   minutosDesdeMedianoche,
   hhmmAMinutos,
@@ -63,7 +64,7 @@ export class TurnosService {
     const finDia = combinarFechaYMinutos(fecha, 24 * 60);
     const turnosDelDia = await this.prisma.turno.findMany({
       where: {
-        estado: { in: [EstadoTurno.confirmado, EstadoTurno.reprogramado] },
+        estado: EstadoTurno.confirmado,
         fecha_hora_inicio: { lt: finDia },
         fecha_hora_fin: { gt: inicioDia },
       },
@@ -284,8 +285,58 @@ export class TurnosService {
     });
   }
 
+  // Listado administrativo de todos los turnos, con filtros y paginación
+  // (TurnosAdminPage). A diferencia de agendaAdmin, no se limita a un día.
+  async listarAdmin(filtros: ListarTurnosAdminDto) {
+    const pagina = filtros.pagina ?? 1;
+    const limite = filtros.limite ?? 20;
+
+    const where: Prisma.TurnoWhereInput = {};
+
+    if (filtros.estado) where.estado = filtros.estado;
+
+    if (filtros.desde || filtros.hasta) {
+      where.fecha_hora_inicio = {
+        ...(filtros.desde ? { gte: soloFecha(filtros.desde) } : {}),
+        // "hasta" es inclusivo: se corta al comienzo del día siguiente.
+        ...(filtros.hasta
+          ? { lt: combinarFechaYMinutos(soloFecha(filtros.hasta), 24 * 60) }
+          : {}),
+      };
+    }
+
+    const busqueda = filtros.busqueda?.trim();
+    if (busqueda) {
+      const soloDigitos = busqueda.replace(/\D/g, "");
+      where.usuario = {
+        OR: [
+          { nombre: { contains: busqueda, mode: "insensitive" } },
+          { apellido: { contains: busqueda, mode: "insensitive" } },
+          ...(soloDigitos ? [{ telefono: { contains: soloDigitos } }] : []),
+        ],
+      };
+    }
+
+    const [total, data] = await this.prisma.$transaction([
+      this.prisma.turno.count({ where }),
+      this.prisma.turno.findMany({
+        where,
+        orderBy: { fecha_hora_inicio: "desc" },
+        skip: (pagina - 1) * limite,
+        take: limite,
+        include: {
+          usuario: { select: { id: true, nombre: true, apellido: true, telefono: true } },
+          turno_servicios: { include: { servicio: true } },
+        },
+      }),
+    ]);
+
+    return { data, total, pagina, limite };
+  }
+
   async cancelarComoAdmin(turnoId: number) {
     const turno = await this.findOneConUsuario(turnoId);
+    this.asegurarTurnoConfirmado(turno.estado, "cancelar");
 
     const actualizado = await this.prisma.turno.update({
       where: { id: turnoId },
@@ -373,7 +424,8 @@ export class TurnosService {
   }
 
   async marcarAtendido(turnoId: number) {
-    await this.findOne(turnoId);
+    const turno = await this.findOne(turnoId);
+    this.asegurarTurnoConfirmado(turno.estado, "marcar como atendido");
     return this.prisma.turno.update({
       where: { id: turnoId },
       data: { estado: EstadoTurno.atendido },
@@ -396,6 +448,16 @@ export class TurnosService {
   // ============================================================
   // helpers privados
   // ============================================================
+
+  // Solo un turno confirmado puede cancelarse o marcarse como atendido desde el
+  // panel. Evita, por ejemplo, "atender" un turno ya cancelado o reprogramado.
+  private asegurarTurnoConfirmado(estado: EstadoTurno, accion: string) {
+    if (estado !== EstadoTurno.confirmado) {
+      throw new ConflictException(
+        `No se puede ${accion} un turno en estado "${estado}". Solo aplica a turnos confirmados.`,
+      );
+    }
+  }
 
   private async findOne(id: number) {
     const turno = await this.prisma.turno.findUnique({ where: { id } });
@@ -564,7 +626,7 @@ export class TurnosService {
 
     const turnosEnConflicto = await this.prisma.turno.findMany({
       where: {
-        estado: { in: [EstadoTurno.confirmado, EstadoTurno.reprogramado] },
+        estado: EstadoTurno.confirmado,
         ...(excluirTurnoId ? { id: { not: excluirTurnoId } } : {}),
         fecha_hora_inicio: { lt: finCandidato },
         fecha_hora_fin: { gt: inicioCandidato },

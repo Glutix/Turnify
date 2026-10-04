@@ -8,9 +8,10 @@ import { Module } from "@nestjs/common";
 import { ServiciosController } from "./servicios.controller";
 import { ServiciosService } from "./servicios.service";
 import { CategoriasServicioModule } from "../categorias-servicio/categorias-servicio.module";
+import { AuthModule } from "../auth/auth.module";
 
 @Module({
-  imports: [CategoriasServicioModule],
+  imports: [CategoriasServicioModule, AuthModule],
   controllers: [ServiciosController],
   providers: [ServiciosService],
   exports: [ServiciosService],

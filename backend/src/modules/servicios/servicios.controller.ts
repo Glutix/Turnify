@@ -15,6 +15,7 @@ import {
 import { ServiciosService } from "./servicios.service";
 import { CrearServicioDto } from "./dto/crear-servicio.dto";
 import { ActualizarServicioDto } from "./dto/actualizar-servicio.dto";
+import { SoloAdmin } from "../auth/decorators/auth.decorators";
 
 // El prefijo 'servicios' se aplica a todas las rutas de este controller.
 @Controller("servicios")
@@ -34,12 +35,14 @@ export class ServiciosController {
   }
 
   // POST /servicios
+  @SoloAdmin()
   @Post()
   create(@Body() dto: CrearServicioDto) {
     return this.serviciosService.create(dto);
   }
 
   // PATCH /servicios/:id
+  @SoloAdmin()
   @Patch(":id")
   update(
     @Param("id", ParseIntPipe) id: number,
@@ -49,6 +52,7 @@ export class ServiciosController {
   }
 
   // PATCH /servicios/:id/estado
+  @SoloAdmin()
   @Patch(":id/estado")
   toggleEstado(@Param("id", ParseIntPipe) id: number) {
     return this.serviciosService.toggleEstado(id);

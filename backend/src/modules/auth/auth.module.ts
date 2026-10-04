@@ -21,6 +21,8 @@ const envJwt = validarEnvJwt();
     }),
   ],
   controllers: [AuthController],
+  // Los demás módulos importan AuthModule para usar JwtAuthGuard / RolesGuard.
+  exports: [JwtModule],
   providers: [
     AuthService,
     {

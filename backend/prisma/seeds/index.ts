@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import { seedCategoriasServicios } from "./categorias-servicios.seed";
 import { seedAdmin } from "./admin.seed";
+import { seedFranjasHorarias } from "./franjas-horarias.seed";
 
 async function main() {
   console.log("=================================");
@@ -10,6 +11,8 @@ async function main() {
   await seedCategoriasServicios();
 
   await seedAdmin();
+
+  await seedFranjasHorarias();
 
   console.log("=================================");
   console.log("Seeds finalizados correctamente.");
