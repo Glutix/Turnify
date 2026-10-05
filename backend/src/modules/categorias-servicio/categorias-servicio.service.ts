@@ -13,6 +13,10 @@ import { CrearCategoriaDto } from "./dto/crear-categoria.dto";
 import { ActualizarCategoriaDto } from "./dto/actualizar-categoria.dto";
 import { PrismaService } from "../../prisma/prisma.service";
 
+// El id es un Int de 32 bits en la base: un valor mayor no puede existir
+// y haría fallar la consulta con un 500.
+const ID_MAXIMO = 2147483647;
+
 @Injectable()
 export class CategoriasServicioService {
   // Inyección de dependencias: NestJS instancia PrismaService automáticamente
@@ -27,6 +31,12 @@ export class CategoriasServicioService {
 
   // GET /api/categorias-servicio/:id — Retorna una categoría por ID
   async findOne(id: number) {
+    if (id > ID_MAXIMO) {
+      throw new NotFoundException(
+        `Categoría de producto con id ${id} no encontrada`,
+      );
+    }
+
     const categoria = await this.prisma.categoriaServicio.findUnique({
       where: { id },
     });

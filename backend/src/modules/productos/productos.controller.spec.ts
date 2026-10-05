@@ -1,18 +1,27 @@
-import { Test, type TestingModule } from "@nestjs/testing";
+import { GUARDS_METADATA } from "@nestjs/common/constants";
+import { RolUsuario } from "@prisma/client";
 import { ProductosController } from "./productos.controller";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { RolesGuard } from "../auth/guards/roles.guard";
+import { ROLES_KEY } from "../auth/decorators/roles.decorator";
+
+const rutas = Object.getOwnPropertyNames(ProductosController.prototype).filter(
+  (nombre) => nombre !== "constructor",
+);
 
 describe("ProductosController", () => {
-  let controller: ProductosController;
-
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [ProductosController],
-    }).compile();
-
-    controller = module.get<ProductosController>(ProductosController);
+  it("expone las 6 rutas del CRUD", () => {
+    expect(rutas).toHaveLength(6);
   });
 
-  it("should be defined", () => {
-    expect(controller).toBeDefined();
+  it.each(rutas)("%s exige JWT y rol admin", (nombre) => {
+    const handler =
+      ProductosController.prototype[nombre as keyof ProductosController];
+
+    expect(Reflect.getMetadata(GUARDS_METADATA, handler)).toEqual([
+      JwtAuthGuard,
+      RolesGuard,
+    ]);
+    expect(Reflect.getMetadata(ROLES_KEY, handler)).toEqual([RolUsuario.admin]);
   });
 });
