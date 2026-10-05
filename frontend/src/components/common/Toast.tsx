@@ -31,7 +31,7 @@ export function Toast({ message, type, onClose, duration = 4000 }: ToastProps) {
   }, [message, type, duration]);
 
   return (
-    <div className="fixed bottom-6 left-4 right-4 z-[60] sm:left-auto sm:right-6 sm:max-w-sm">
+    <div className="fixed bottom-6 left-4 right-4 z-60 sm:left-auto sm:right-6 sm:max-w-sm">
       <div
         role="status"
         className={`rounded-lg px-5 py-3 text-sm text-espresso shadow-md ${TYPE_STYLES[type]}`}
