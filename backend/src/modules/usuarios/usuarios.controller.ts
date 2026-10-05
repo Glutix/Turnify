@@ -44,6 +44,24 @@ export class UsuariosController {
     return this.usuariosService.findAll(filtros);
   }
 
+  // GET /usuarios/me — el cliente lee su propio perfil (CU-12 / CU-38).
+  // OJO: tiene que declararse ANTES de ":id", si no Nest toma "me" como un id
+  // y ParseIntPipe responde 400.
+  @Autenticado()
+  @Get("me")
+  obtenerMiPerfil(@UsuarioActual() actual: UsuarioAutenticado) {
+    return this.usuariosService.miPerfil(actual.id);
+  }
+
+  // PATCH /usuarios/me — el cliente completa o edita sus propios datos.
+  // Reutiliza update(): las reglas (teléfono solo lo cambia la admin, email
+  // único, perfil_completo automático) son las mismas que en PATCH /:id.
+  @Autenticado()
+  @Patch("me")
+  actualizarMiPerfil(@Body() dto: ActualizarUsuarioDto, @UsuarioActual() actual: UsuarioAutenticado) {
+    return this.usuariosService.update(actual.id, dto, actual);
+  }
+
   // GET /usuarios/:id
   @SoloAdmin()
   @Get(":id")

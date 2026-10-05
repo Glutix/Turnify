@@ -12,6 +12,7 @@ import {
   ExcepcionHorario,
 } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { esErrorPrisma, esErrorTablaInexistente } from "../../prisma/prisma-errors.util";
 import { type CrearFranjaHorariaDto } from "./dto/crear-franja-horaria.dto";
 import { type ActualizarFranjaHorariaDto } from "./dto/actualizar-franja-horaria.dto";
 import { type CrearExcepcionHorarioDto } from "./dto/crear-excepcion-horario.dto";
@@ -434,27 +435,17 @@ export class HorariosService {
   }
 
   private esErrorTablaTurnoInexistente(error: unknown): boolean {
-    if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
-      return false;
-    }
-    const meta = error.meta as
-      | { driverAdapterError?: { cause?: { kind?: string } } }
-      | undefined;
-    return meta?.driverAdapterError?.cause?.kind === "TableDoesNotExist";
+    return esErrorTablaInexistente(error);
   }
 
   private mapearErrorPrisma(error: unknown) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === "P2002") {
-        return new ConflictException(
-          "Ya existe un registro idéntico (mismo día/horario o mismo rango)",
-        );
-      }
-      if (error.code === "P2003") {
-        return new ConflictException(
-          "No se puede eliminar: hay turnos asociados",
-        );
-      }
+    if (esErrorPrisma(error, "P2002")) {
+      return new ConflictException(
+        "Ya existe un registro idéntico (mismo día/horario o mismo rango)",
+      );
+    }
+    if (esErrorPrisma(error, "P2003")) {
+      return new ConflictException("No se puede eliminar: hay turnos asociados");
     }
     return error;
   }

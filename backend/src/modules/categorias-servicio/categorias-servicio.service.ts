@@ -8,7 +8,7 @@ import {
   NotFoundException,
   ConflictException,
 } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { esErrorPrisma } from "../../prisma/prisma-errors.util";
 import { CrearCategoriaDto } from "./dto/crear-categoria.dto";
 import { ActualizarCategoriaDto } from "./dto/actualizar-categoria.dto";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -50,10 +50,7 @@ export class CategoriasServicioService {
       });
     } catch (error) {
       // P2002 = violación de constraint unique (nombre duplicado)
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2002"
-      ) {
+      if (esErrorPrisma(error, "P2002")) {
         throw new ConflictException(
           `Ya existe una categoría con el nombre "${dto.nombre}"`,
         );
@@ -73,10 +70,7 @@ export class CategoriasServicioService {
         data: dto,
       });
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2002"
-      ) {
+      if (esErrorPrisma(error, "P2002")) {
         throw new ConflictException(
           `Ya existe una categoría con el nombre "${dto.nombre}"`,
         );
@@ -100,12 +94,9 @@ export class CategoriasServicioService {
       // P2003 = violación de foreign key (hay servicios usando esta categoría)
       // La relación Servicio.categoria tiene onDelete: Restrict en el schema,
       // por lo que la base de datos rechaza el borrado automáticamente.
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2003"
-      ) {
+      if (esErrorPrisma(error, "P2003")) {
         throw new ConflictException(
-          "No se puede eliminar la categoría porque tiene servicios asociados. Reasigná o eliminá esos servicios primero.",
+          "No se puede eliminar la categoría porque tiene servicios asociados. Reasigná esos servicios a otra categoría primero.",
         );
       }
       throw error;

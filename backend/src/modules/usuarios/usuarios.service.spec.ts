@@ -18,6 +18,8 @@ const prismaMock = {
     update: jest.fn(),
     delete: jest.fn(),
   },
+  turno: { count: jest.fn() },
+  pedido: { count: jest.fn() },
 };
 
 const admin = { id: 1, rol: RolUsuario.admin };
@@ -48,6 +50,8 @@ describe("UsuariosService", () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     prismaMock.usuario.findFirst.mockResolvedValue(null);
+    prismaMock.turno.count.mockResolvedValue(0);
+    prismaMock.pedido.count.mockResolvedValue(0);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [UsuariosService, { provide: PrismaService, useValue: prismaMock }],
@@ -232,7 +236,30 @@ describe("UsuariosService", () => {
       expect(prismaMock.usuario.delete).not.toHaveBeenCalled();
     });
 
-    it("P2003 (turnos/pedidos asociados) → 409 claro", async () => {
+    it("con turnos asociados → 409 claro, sin intentar el DELETE", async () => {
+      prismaMock.usuario.findUnique.mockResolvedValue(usuarioBase());
+      prismaMock.turno.count.mockResolvedValue(2);
+      await expect(service.remove(2, admin)).rejects.toThrow(ConflictException);
+      await expect(service.remove(2, admin)).rejects.toThrow("2 turnos asociados");
+      expect(prismaMock.usuario.delete).not.toHaveBeenCalled();
+    });
+
+    it("con pedidos asociados → 409 claro", async () => {
+      prismaMock.usuario.findUnique.mockResolvedValue(usuarioBase());
+      prismaMock.pedido.count.mockResolvedValue(1);
+      await expect(service.remove(2, admin)).rejects.toThrow("1 pedido asociado");
+      expect(prismaMock.usuario.delete).not.toHaveBeenCalled();
+    });
+
+    it("error de FK con forma de driver adapter (sin instanceof) → 409", async () => {
+      prismaMock.usuario.findUnique.mockResolvedValue(usuarioBase());
+      prismaMock.usuario.delete.mockRejectedValue({
+        meta: { driverAdapterError: { cause: { kind: "ForeignKeyConstraintViolation" } } },
+      });
+      await expect(service.remove(2, admin)).rejects.toThrow(ConflictException);
+    });
+
+    it("P2003 en carrera (turno creado entre el chequeo y el DELETE) → 409 claro", async () => {
       prismaMock.usuario.findUnique.mockResolvedValue(usuarioBase());
       prismaMock.usuario.delete.mockRejectedValue(errorPrisma("P2003"));
       await expect(service.remove(2, admin)).rejects.toThrow(

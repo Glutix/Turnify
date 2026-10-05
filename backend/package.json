@@ -6,6 +6,8 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
+    "postinstall": "prisma generate",
+    "prisma:generate": "prisma generate",
     "seed": "prisma db seed",
     "db:reset": "prisma migrate reset --force",
     "build": "nest build",
