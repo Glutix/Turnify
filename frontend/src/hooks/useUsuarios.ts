@@ -4,6 +4,8 @@ import {
   getUsuarios,
   crearUsuario,
   actualizarUsuario,
+  getMiPerfil,
+  actualizarMiPerfil,
   cambiarRolUsuario,
   eliminarUsuario,
 } from "../api/usuarios";
@@ -14,7 +16,52 @@ import type {
   RolUsuario,
 } from "../types/usuario";
 
+import { establecerPassword } from "../api/auth";
+import { useAuthStore } from "../stores/authStore";
+
 const QUERY_KEY = ["usuarios"];
+
+export function useMiPerfil() {
+  const token = useAuthStore((state) => state.token);
+  return useQuery({
+    queryKey: [...QUERY_KEY, "me"],
+    queryFn: getMiPerfil,
+    enabled: !!token,
+  });
+}
+
+export function useEstablecerPassword() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { passwordActual?: string; passwordNueva: string }) =>
+      establecerPassword(payload),
+    // Refresca "tiene_password" en Mi perfil
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+  });
+}
+
+export function useActualizarMiPerfil() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: ActualizarUsuarioPayload) => actualizarMiPerfil(payload),
+    onSuccess: (perfil) => {
+      // Mantiene sincronizado el usuario de la sesión (header, perfil_completo, etc.)
+      const { usuario, token, setAuth } = useAuthStore.getState();
+      if (usuario && token) {
+        setAuth(
+          {
+            ...usuario,
+            nombre: perfil.nombre,
+            apellido: perfil.apellido ?? undefined,
+            perfil_completo: perfil.perfil_completo,
+          },
+          token,
+        );
+      }
+      return queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    },
+  });
+}
 
 export function useUsuarios(filtros: FiltrosUsuarios = {}) {
   return useQuery({

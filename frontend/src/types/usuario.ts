@@ -10,6 +10,8 @@ export interface Usuario {
   rol: RolUsuario;
   perfil_completo: boolean;
   fecha_alta: string;
+  // Solo lo devuelve GET /usuarios/me (nunca el hash).
+  tiene_password?: boolean;
 }
 
 export interface CrearUsuarioPayload {

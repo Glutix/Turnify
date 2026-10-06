@@ -243,9 +243,26 @@ export function LoginPage() {
     }
   }
 
-  function handleSubmitCredenciales(e: FormEvent) {
+  async function handleSubmitCredenciales(e: FormEvent) {
     e.preventDefault();
-    console.log("Login con usuario/contraseña pendiente");
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const { data } = await api.post("/auth/login", {
+        telefono: identificador.trim(),
+        password: contrasena,
+      });
+
+      setAuth(data.usuario, data.token);
+      redirigirSegunRol(data.usuario.rol);
+    } catch (err) {
+      // 401: credenciales incorrectas · 429: bloqueo de 15 min por 5 intentos fallidos
+      setError(extraerMensajeError(err, "No pudimos iniciar sesión. Intentá de nuevo."));
+      setContrasena("");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -258,7 +275,7 @@ export function LoginPage() {
 
           <p className="mt-4 text-sm text-espresso/60">
             {step === "credenciales"
-              ? "Ingresá con tu usuario y contraseña"
+              ? "Ingresá con tu teléfono y contraseña"
               : "Ingresá tu teléfono para continuar"}
           </p>
         </div>
@@ -324,6 +341,8 @@ export function LoginPage() {
                 onContrasenaChange={setContrasena}
                 onSubmit={handleSubmitCredenciales}
                 onIrATelefono={() => irAPaso("telefono")}
+                error={error ?? undefined}
+                isLoading={isLoading}
               />
             )}
           </div>

@@ -50,3 +50,28 @@ export async function registrarUsuario(
 
   return data;
 }
+
+export interface LoginPasswordResponse {
+  token: string;
+  usuario: Usuario;
+}
+
+// RF20 / RF30: teléfono + contraseña. 5 fallos bloquean 15 min (HTTP 429).
+export async function loginConPassword(
+  telefono: string,
+  password: string,
+): Promise<LoginPasswordResponse> {
+  const { data } = await api.post<LoginPasswordResponse>("/auth/login", {
+    telefono,
+    password,
+  });
+  return data;
+}
+
+export async function establecerPassword(payload: {
+  passwordActual?: string;
+  passwordNueva: string;
+}): Promise<{ mensaje: string }> {
+  const { data } = await api.post("/auth/password", payload);
+  return data;
+}
