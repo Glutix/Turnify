@@ -46,3 +46,7 @@ node_modules/
 # Archivos temporales
 .temp/
 .tmp/
+
+
+# Gestor de paquetes: el proyecto usa pnpm (ver pnpm-lock.yaml)
+package-lock.json
