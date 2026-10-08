@@ -5,6 +5,7 @@ import type {
   FiltrosTurnosAdmin,
   TurnosPaginados,
   ReservarTurnoPayload,
+  ReservarTurnoAutenticadoPayload,
   ReservarTurnoAdminPayload,
   ReprogramarTurnoAdminPayload,
 } from "../types/turno";
@@ -26,21 +27,35 @@ export async function reservarTurno(payload: ReservarTurnoPayload): Promise<Turn
   return data;
 }
 
-export async function obtenerHistorialPorTelefono(telefono: string): Promise<Turno[]> {
-  const { data } = await api.get("/turnos/historial", { params: { telefono } });
-  return data;
-}
-
-export async function cancelarTurno(id: number, telefono: string): Promise<Turno> {
-  const { data } = await api.patch(`/turnos/${id}/cancelar`, { telefono });
-  return data;
-}
-
-export async function reprogramarTurno(
-  id: number,
-  payload: { telefono: string; fecha: string; hora_inicio: string },
+export async function reservarTurnoAutenticado(
+  payload: ReservarTurnoAutenticadoPayload,
 ): Promise<Turno> {
-  const { data } = await api.patch(`/turnos/${id}/reprogramar`, payload);
+  const { data } = await api.post("/turnos/reservar-autenticado", payload);
+  return data;
+}
+
+export async function obtenerDiasHabilitados(desde: string, hasta: string): Promise<string[]> {
+  const { data } = await api.get("/turnos/dias-habilitados", { params: { desde, hasta } });
+  return data;
+}
+
+// --- Cliente con sesión (CU-09 / CU-10 / CU-11) ---
+
+export async function obtenerMisTurnos(): Promise<Turno[]> {
+  const { data } = await api.get("/turnos/mis-turnos");
+  return data;
+}
+
+export async function cancelarMiTurno(id: number): Promise<Turno> {
+  const { data } = await api.patch(`/turnos/mis-turnos/${id}/cancelar`);
+  return data;
+}
+
+export async function reprogramarMiTurno(
+  id: number,
+  payload: ReprogramarTurnoAdminPayload,
+): Promise<Turno> {
+  const { data } = await api.patch(`/turnos/mis-turnos/${id}/reprogramar`, payload);
   return data;
 }
 

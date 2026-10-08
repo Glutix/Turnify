@@ -15,6 +15,7 @@ export function Header() {
   const [menuAbierto, setMenuAbierto] = useState(false);
 
   const { usuario, logout } = useAuthStore();
+  const links = usuario ? [...NAV_LINKS, { to: "/mis-turnos", label: "Mis turnos" }] : NAV_LINKS;
 
   return (
     <header className="sticky top-0 z-50 border-b border-espresso/10 bg-superficie/90 shadow-sm backdrop-blur-md">
@@ -32,7 +33,7 @@ export function Header() {
           className="hidden items-center gap-10 md:flex"
           aria-label="Navegación principal"
         >
-          {NAV_LINKS.map((link) => (
+          {links.map((link) => (
             <NavLink
               key={link.to}
               to={link.to}
@@ -105,7 +106,7 @@ export function Header() {
           className="flex flex-col gap-1 border-t border-espresso/10 bg-superficie px-6 pb-6 pt-4 md:hidden"
           aria-label="Navegación móvil"
         >
-          {NAV_LINKS.map((link) => (
+          {links.map((link) => (
             <NavLink
               key={link.to}
               to={link.to}

@@ -3,7 +3,6 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
-  UnauthorizedException,
   ConflictException,
 } from "@nestjs/common";
 import { EstadoTurno, type Prisma, type Usuario, type Servicio } from "@prisma/client";
@@ -11,6 +10,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { HorariosService } from "../horarios/horarios.service";
 import { normalizarTelefono } from "../auth/utils/normalizar-telefono";
 import { type ReservarTurnoDto } from "./dto/reservar-turno.dto";
+import { type ReservarTurnoAutenticadoDto } from "./dto/reservar-turno-autenticado.dto";
 import { type ReprogramarTurnoDto } from "./dto/reprogramar-turno.dto";
 import { type ReservarTurnoAdminDto } from "./dto/reservar-turno-admin.dto";
 import { type ListarTurnosAdminDto } from "./dto/listar-turnos-admin.dto";
@@ -26,12 +26,19 @@ import {
 
 const PASO_MINUTOS_SLOT = 15;
 const HORAS_MINIMAS_ANTICIPACION = 12;
+// Duración máxima de un turno: 3 h 45 min. Duplicada en el frontend
+// (utils/servicio.ts → MAX_DURACION_TURNO_MINUTOS) para avisar antes de reservar.
+const MAX_DURACION_TURNO_MINUTOS = 225;
+const MAX_RANGO_DIAS_HABILITADOS = 62;
+// Clave del advisory lock de Postgres que serializa las altas/reprogramaciones
+// de turnos (una sola profesional = una sola agenda).
+const CLAVE_LOCK_AGENDA = 7301001;
 
 // Duplicado a propósito de AuthService.validarCodigo — ver nota en
 // verificarCodigoOtp() más abajo sobre por qué no se reutilizó AuthService
 // directamente bajo la presión de tiempo del entrega. Candidato a
 // refactor: extraer un OtpService compartido entre auth y turnos.
-const MAX_INTENTOS_CODIGO = 5;
+const MAX_INTENTOS_CODIGO = 3; // CU-07: máximo 3 intentos de OTP
 
 @Injectable()
 export class TurnosService {
@@ -116,6 +123,40 @@ export class TurnosService {
     return slots;
   }
 
+  // Días con atención entre dos fechas (inclusive): excluye pasados, días sin
+  // franjas activas (p. ej. sábados y domingos) y feriados/cierres
+  // (bloqueo_total). Lo usa el frontend para ofrecer solo fechas válidas.
+  async diasHabilitados(desdeStr: string, hastaStr: string): Promise<string[]> {
+    const formato = /^\d{4}-\d{2}-\d{2}$/;
+    if (!formato.test(desdeStr ?? "") || !formato.test(hastaStr ?? "")) {
+      throw new BadRequestException("desde y hasta deben tener formato YYYY-MM-DD");
+    }
+    const DIA_MS = 24 * 60 * 60 * 1000;
+    const ahora = ahoraDelSalon();
+    const hoy = Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth(), ahora.getUTCDate());
+    const desde = Math.max(soloFecha(desdeStr).getTime(), hoy);
+    const hasta = soloFecha(hastaStr).getTime();
+    if (Number.isNaN(desde) || Number.isNaN(hasta) || hasta < desde) return [];
+    if ((hasta - desde) / DIA_MS > MAX_RANGO_DIAS_HABILITADOS) {
+      throw new BadRequestException(
+        `El rango máximo es de ${MAX_RANGO_DIAS_HABILITADOS} días`,
+      );
+    }
+
+    const fechas: Date[] = [];
+    for (let t = desde; t <= hasta; t += DIA_MS) fechas.push(new Date(t));
+
+    const habilitados = await Promise.all(
+      fechas.map(async (fecha) => {
+        const excepciones = await this.horariosService.obtenerExcepcionesParaFecha(fecha);
+        if (excepciones.some((e) => e.tipo === "bloqueo_total")) return null;
+        const franjas = await this.horariosService.obtenerFranjasActivasPorFecha(fecha);
+        return franjas.length > 0 ? fecha.toISOString().slice(0, 10) : null;
+      }),
+    );
+    return habilitados.filter((d): d is string => d !== null);
+  }
+
   // ============================================================
   // CU-07 — Reservar turno (invitado, con OTP)
   // ============================================================
@@ -129,7 +170,7 @@ export class TurnosService {
     const fecha = soloFecha(dto.fecha);
     const horaInicioMin = hhmmAMinutos(dto.hora_inicio);
 
-    const { inicioCandidato, finCandidato } = await this.validarDisponibilidadSlot(
+    await this.validarDisponibilidadSlot(
       fecha,
       horaInicioMin,
       duracionTotalMinutos,
@@ -137,37 +178,73 @@ export class TurnosService {
 
     const usuario = await this.obtenerOCrearUsuarioPorTelefono(telefono, dto.nombre);
 
-    const turno = await this.crearTurnoConServicios(
-      usuario.id,
-      inicioCandidato,
-      finCandidato,
-      servicios,
+    const turno = await this.enAgendaBloqueada(
+      fecha,
+      horaInicioMin,
+      duracionTotalMinutos,
+      undefined,
+      (tx, inicio, fin) => this.crearTurnoConServicios(usuario.id, inicio, fin, servicios, undefined, tx),
     );
 
-    // RF09: notificar a la admin al confirmar.
-    this.notificarAdmin(
-      `Nuevo turno reservado: ${usuario.nombre} ${usuario.apellido ?? ""} (${usuario.telefono}) ` +
-        `el ${dto.fecha} a las ${dto.hora_inicio}`,
-    );
-    // RF10: recordatorio 24hs antes — todavía no hay scheduler/cron armado.
-    this.logger.warn(
-      `[TODO] Programar recordatorio 24hs antes para el turno #${turno.id} (RF10, pendiente de NotificacionesModule)`,
-    );
+    this.notificarReservaConfirmada(usuario, turno.id, dto.fecha, dto.hora_inicio);
 
     return turno;
   }
 
   // ============================================================
-  // CU-09 / RF11-13 — Cancelar turno (cliente)
+  // CU-07 (variante) — Reservar turno con sesión iniciada
   // ============================================================
-
-  async cancelarComoCliente(turnoId: number, telefonoCrudo: string) {
-    const turno = await this.findOneConUsuario(turnoId);
-    const telefono = normalizarTelefono(telefonoCrudo);
-
-    if (turno.usuario.telefono !== telefono) {
-      throw new UnauthorizedException("Este turno no pertenece a ese teléfono");
+  // Los datos salen del usuario del token (no del body). El OTP se sigue
+  // exigiendo, enviado al teléfono del usuario: es la barrera anti-bot /
+  // anti-script contra reservas masivas (un código sirve para UNA reserva
+  // porque verificarCodigoOtp lo marca como verificado).
+  // Se valida servicio + horario ANTES de consumir el código, así un 409
+  // por horario ocupado no obliga a pedir otro OTP.
+  async reservarComoAutenticado(usuarioId: number, dto: ReservarTurnoAutenticadoDto) {
+    const usuario = await this.obtenerUsuarioPorId(usuarioId);
+    if (!usuario.telefono) {
+      throw new BadRequestException(
+        "Tu cuenta no tiene un teléfono asociado, no se puede verificar la reserva",
+      );
     }
+
+    const { servicios, duracionTotalMinutos } = await this.obtenerServiciosValidos(
+      dto.servicios,
+    );
+    const fecha = soloFecha(dto.fecha);
+    const horaInicioMin = hhmmAMinutos(dto.hora_inicio);
+
+    await this.validarDisponibilidadSlot(
+      fecha,
+      horaInicioMin,
+      duracionTotalMinutos,
+    );
+
+    await this.verificarCodigoOtp(usuario.telefono, dto.codigo);
+
+    const turno = await this.enAgendaBloqueada(
+      fecha,
+      horaInicioMin,
+      duracionTotalMinutos,
+      undefined,
+      (tx, inicio, fin) => this.crearTurnoConServicios(usuario.id, inicio, fin, servicios, undefined, tx),
+    );
+
+    this.notificarReservaConfirmada(usuario, turno.id, dto.fecha, dto.hora_inicio);
+
+    return turno;
+  }
+
+  // ============================================================
+  // CU-09 / RF11-13 — Cancelar turno (cliente con sesión)
+  // ============================================================
+  // Se identifica por la sesión (usuarioId del token), NO por teléfono: antes
+  // cualquiera que conociera un teléfono y un id podía cancelar. Un turno
+  // ajeno responde 404 (no 401, que desloguea en el frontend ni revela que existe).
+
+  async cancelarMiTurno(usuarioId: number, turnoId: number) {
+    const turno = await this.findOneConUsuario(turnoId);
+    this.asegurarTurnoDelUsuario(turno.usuario_id, usuarioId, turnoId);
 
     this.asegurarTurnoConfirmado(turno.estado, "cancelar");
     this.asegurarAnticipacionMinima(turno.fecha_hora_inicio);
@@ -186,16 +263,12 @@ export class TurnosService {
   }
 
   // ============================================================
-  // CU-10 / RF11-13 — Reprogramar turno (cliente)
+  // CU-10 / RF11-13 — Reprogramar turno (cliente con sesión)
   // ============================================================
 
-  async reprogramarComoCliente(turnoId: number, dto: ReprogramarTurnoDto) {
+  async reprogramarMiTurno(usuarioId: number, turnoId: number, dto: ReprogramarTurnoDto) {
     const turnoOriginal = await this.findOneConServiciosYUsuario(turnoId);
-    const telefono = normalizarTelefono(dto.telefono);
-
-    if (turnoOriginal.usuario.telefono !== telefono) {
-      throw new UnauthorizedException("Este turno no pertenece a ese teléfono");
-    }
+    this.asegurarTurnoDelUsuario(turnoOriginal.usuario_id, usuarioId, turnoId);
 
     this.asegurarTurnoConfirmado(turnoOriginal.estado, "reprogramar");
     this.asegurarAnticipacionMinima(turnoOriginal.fecha_hora_inicio);
@@ -207,39 +280,12 @@ export class TurnosService {
     const fecha = soloFecha(dto.fecha);
     const horaInicioMin = hhmmAMinutos(dto.hora_inicio);
 
-    const { inicioCandidato, finCandidato } = await this.validarDisponibilidadSlot(
+    const nuevoTurno = await this.ejecutarReprogramacion(
+      turnoOriginal,
       fecha,
       horaInicioMin,
       duracionTotalMinutos,
-      turnoId,
     );
-
-    const serviciosOriginales = turnoOriginal.turno_servicios.map((ts) => ({
-      id: ts.servicio_id,
-      precio: ts.precio_unitario,
-    }));
-
-    const [, nuevoTurno] = await this.prisma.$transaction([
-      this.prisma.turno.update({
-        where: { id: turnoId },
-        data: { estado: EstadoTurno.reprogramado },
-      }),
-      this.prisma.turno.create({
-        data: {
-          usuario_id: turnoOriginal.usuario_id,
-          turno_origen_id: turnoId,
-          fecha_hora_inicio: inicioCandidato,
-          fecha_hora_fin: finCandidato,
-          estado: EstadoTurno.confirmado,
-          turno_servicios: {
-            create: serviciosOriginales.map((s) => ({
-              servicio_id: s.id,
-              precio_unitario: s.precio,
-            })),
-          },
-        },
-      }),
-    ]);
 
     // RF14/15: notificar a la admin cuando el cliente reprograma.
     this.notificarAdmin(
@@ -251,14 +297,12 @@ export class TurnosService {
   }
 
   // ============================================================
-  // CU-11 / RF16-17 — Historial por teléfono
+  // CU-11 / RF16-17 — Mis turnos (historial del usuario con sesión)
   // ============================================================
 
-  async historialPorTelefono(telefonoCrudo: string) {
-    const telefono = normalizarTelefono(telefonoCrudo);
-
+  async misTurnos(usuarioId: number) {
     return this.prisma.turno.findMany({
-      where: { usuario: { telefono } },
+      where: { usuario_id: usuarioId },
       orderBy: { fecha_hora_inicio: "desc" },
       include: { turno_servicios: { include: { servicio: true } } },
     });
@@ -366,39 +410,12 @@ export class TurnosService {
     const fecha = soloFecha(fechaStr);
     const horaInicioMin = hhmmAMinutos(horaInicio);
 
-    const { inicioCandidato, finCandidato } = await this.validarDisponibilidadSlot(
+    const nuevoTurno = await this.ejecutarReprogramacion(
+      turnoOriginal,
       fecha,
       horaInicioMin,
       duracionTotalMinutos,
-      turnoId,
     );
-
-    const serviciosOriginales = turnoOriginal.turno_servicios.map((ts) => ({
-      id: ts.servicio_id,
-      precio: ts.precio_unitario,
-    }));
-
-    const [, nuevoTurno] = await this.prisma.$transaction([
-      this.prisma.turno.update({
-        where: { id: turnoId },
-        data: { estado: EstadoTurno.reprogramado },
-      }),
-      this.prisma.turno.create({
-        data: {
-          usuario_id: turnoOriginal.usuario_id,
-          turno_origen_id: turnoId,
-          fecha_hora_inicio: inicioCandidato,
-          fecha_hora_fin: finCandidato,
-          estado: EstadoTurno.confirmado,
-          turno_servicios: {
-            create: serviciosOriginales.map((s) => ({
-              servicio_id: s.id,
-              precio_unitario: s.precio,
-            })),
-          },
-        },
-      }),
-    ]);
 
     // RF42: notificar a la clienta cuando la admin reprograma.
     this.notificarCliente(
@@ -414,7 +431,7 @@ export class TurnosService {
     const fecha = soloFecha(dto.fecha);
     const horaInicioMin = hhmmAMinutos(dto.hora_inicio);
 
-    const { inicioCandidato, finCandidato } = await this.validarDisponibilidadSlot(
+    await this.validarDisponibilidadSlot(
       fecha,
       horaInicioMin,
       duracionTotalMinutos,
@@ -424,12 +441,32 @@ export class TurnosService {
       ? await this.obtenerUsuarioPorId(dto.usuario_id)
       : await this.obtenerOCrearUsuarioPorTelefono(dto.telefono as string, dto.nombre);
 
-    return this.crearTurnoConServicios(usuario.id, inicioCandidato, finCandidato, servicios);
+    return this.enAgendaBloqueada(
+      fecha,
+      horaInicioMin,
+      duracionTotalMinutos,
+      undefined,
+      (tx, inicio, fin) => this.crearTurnoConServicios(usuario.id, inicio, fin, servicios, undefined, tx),
+    );
   }
 
   async marcarAtendido(turnoId: number) {
     const turno = await this.findOne(turnoId);
     this.asegurarTurnoConfirmado(turno.estado, "marcar como atendido");
+
+    // Solo desde el día del turno en adelante (si la admin se olvidó, puede
+    // marcarlo días después; lo que no tiene sentido es "atender" un turno futuro).
+    const ahora = ahoraDelSalon();
+    const inicioDeManiana = Date.UTC(
+      ahora.getUTCFullYear(),
+      ahora.getUTCMonth(),
+      ahora.getUTCDate() + 1,
+    );
+    if (turno.fecha_hora_inicio.getTime() >= inicioDeManiana) {
+      throw new BadRequestException(
+        "Solo se puede marcar como atendido un turno del día de hoy o anterior",
+      );
+    }
     return this.prisma.turno.update({
       where: { id: turnoId },
       data: { estado: EstadoTurno.atendido },
@@ -460,6 +497,12 @@ export class TurnosService {
       throw new ConflictException(
         `No se puede ${accion} un turno en estado "${estado}". Solo aplica a turnos confirmados.`,
       );
+    }
+  }
+
+  private asegurarTurnoDelUsuario(duenioId: number, usuarioId: number, turnoId: number) {
+    if (duenioId !== usuarioId) {
+      throw new NotFoundException(`No existe el turno #${turnoId}`);
     }
   }
 
@@ -508,6 +551,11 @@ export class TurnosService {
       );
     }
     const duracionTotalMinutos = servicios.reduce((acc, s) => acc + s.duracion_minutos, 0);
+    if (duracionTotalMinutos > MAX_DURACION_TURNO_MINUTOS) {
+      throw new BadRequestException(
+        "La duración máxima de un turno es de 3 h 45 min. Elegí menos servicios o sacá dos turnos para realizarte todos.",
+      );
+    }
     return { servicios, duracionTotalMinutos };
   }
 
@@ -536,7 +584,7 @@ export class TurnosService {
   }
 
   // Duplicado deliberadamente de AuthService.validarCodigo (mismas reglas:
-  // 5 intentos, expiración, etc.). No se inyectó AuthService acá para no
+  // 3 intentos, expiración, etc.). No se inyectó AuthService acá para no
   // tener que tocar auth.module.ts (que hoy no exporta AuthService) bajo
   // presión de tiempo antes de la entrega. Si en algún momento se
   // refactoriza, esto debería vivir en un OtpService compartido entre
@@ -567,7 +615,9 @@ export class TurnosService {
         data: { intentos: { increment: 1 } },
       });
       const intentosRestantes = Math.max(MAX_INTENTOS_CODIGO - actualizado.intentos, 0);
-      throw new UnauthorizedException({ message: "Código incorrecto", intentosRestantes });
+      // 400 y NO 401: el interceptor de axios desloguea ante cualquier 401, y un
+      // código mal tipeado no puede sacar de la sesión a quien reserva logueado.
+      throw new BadRequestException({ message: "Código incorrecto", intentosRestantes });
     }
 
     await this.prisma.otpVerificacion.update({
@@ -597,6 +647,7 @@ export class TurnosService {
     horaInicioMin: number,
     duracionMinutos: number,
     excluirTurnoId?: number,
+    db: Prisma.TransactionClient = this.prisma,
   ): Promise<{ inicioCandidato: Date; finCandidato: Date }> {
     const horaFinMin = horaInicioMin + duracionMinutos;
 
@@ -628,7 +679,7 @@ export class TurnosService {
     const inicioCandidato = combinarFechaYMinutos(fecha, horaInicioMin);
     const finCandidato = combinarFechaYMinutos(fecha, horaFinMin);
 
-    const turnosEnConflicto = await this.prisma.turno.findMany({
+    const turnosEnConflicto = await db.turno.findMany({
       where: {
         estado: EstadoTurno.confirmado,
         ...(excluirTurnoId ? { id: { not: excluirTurnoId } } : {}),
@@ -644,14 +695,84 @@ export class TurnosService {
     return { inicioCandidato, finCandidato };
   }
 
+  // Evita el doble-booking: dos reservas simultáneas del mismo horario pasaban
+  // las dos la validación (leer-y-después-escribir). Acá se toma un advisory
+  // lock transaccional (se libera solo al terminar la transacción), se vuelve a
+  // validar el slot DENTRO de la transacción y recién ahí se escribe. La
+  // segunda reserva espera el lock, ve el turno de la primera y recibe 409.
+  // No requiere cambios en schema.prisma (compartido con Ricardo).
+  private async enAgendaBloqueada<T>(
+    fecha: Date,
+    horaInicioMin: number,
+    duracionMinutos: number,
+    excluirTurnoId: number | undefined,
+    accion: (tx: Prisma.TransactionClient, inicio: Date, fin: Date) => Promise<T>,
+  ): Promise<T> {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(`SELECT pg_advisory_xact_lock(${CLAVE_LOCK_AGENDA})`);
+      const { inicioCandidato, finCandidato } = await this.validarDisponibilidadSlot(
+        fecha,
+        horaInicioMin,
+        duracionMinutos,
+        excluirTurnoId,
+        tx,
+      );
+      return accion(tx, inicioCandidato, finCandidato);
+    });
+  }
+
+  // Reprogramar (cliente o admin): el original queda "reprogramado" y se crea
+  // uno nuevo con turno_origen_id y los mismos servicios/precios, todo bajo el
+  // lock de agenda.
+  private async ejecutarReprogramacion(
+    turnoOriginal: {
+      id: number;
+      usuario_id: number;
+      turno_servicios: { servicio_id: number; precio_unitario: Prisma.Decimal | string }[];
+    },
+    fecha: Date,
+    horaInicioMin: number,
+    duracionTotalMinutos: number,
+  ) {
+    return this.enAgendaBloqueada(
+      fecha,
+      horaInicioMin,
+      duracionTotalMinutos,
+      turnoOriginal.id,
+      async (tx, inicio, fin) => {
+        await tx.turno.update({
+          where: { id: turnoOriginal.id },
+          data: { estado: EstadoTurno.reprogramado },
+        });
+        return tx.turno.create({
+          data: {
+            usuario_id: turnoOriginal.usuario_id,
+            turno_origen_id: turnoOriginal.id,
+            fecha_hora_inicio: inicio,
+            fecha_hora_fin: fin,
+            estado: EstadoTurno.confirmado,
+            turno_servicios: {
+              create: turnoOriginal.turno_servicios.map((ts) => ({
+                servicio_id: ts.servicio_id,
+                precio_unitario: ts.precio_unitario,
+              })),
+            },
+          },
+          include: { turno_servicios: { include: { servicio: true } } },
+        });
+      },
+    );
+  }
+
   private async crearTurnoConServicios(
     usuarioId: number,
     fechaHoraInicio: Date,
     fechaHoraFin: Date,
     servicios: Servicio[],
     turnoOrigenId?: number,
+    db: Prisma.TransactionClient = this.prisma,
   ) {
-    return this.prisma.turno.create({
+    return db.turno.create({
       data: {
         usuario_id: usuarioId,
         turno_origen_id: turnoOrigenId,
@@ -671,6 +792,24 @@ export class TurnosService {
 
   private formatearFechaHora(fecha: Date): string {
     return fecha.toISOString().slice(0, 16).replace("T", " ");
+  }
+
+  // RF09 + RF10 al confirmar una reserva (invitado o con sesión).
+  private notificarReservaConfirmada(
+    usuario: Usuario,
+    turnoId: number,
+    fecha: string,
+    horaInicio: string,
+  ) {
+    // RF09: notificar a la admin al confirmar.
+    this.notificarAdmin(
+      `Nuevo turno reservado: ${usuario.nombre} ${usuario.apellido ?? ""} (${usuario.telefono}) ` +
+        `el ${fecha} a las ${horaInicio}`,
+    );
+    // RF10: recordatorio 24hs antes — todavía no hay scheduler/cron armado.
+    this.logger.warn(
+      `[TODO] Programar recordatorio 24hs antes para el turno #${turnoId} (RF10, pendiente de NotificacionesModule)`,
+    );
   }
 
   // RF09/RF14/RF15/RF42: notificaciones simuladas por consola, mismo

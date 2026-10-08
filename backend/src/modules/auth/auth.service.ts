@@ -16,7 +16,8 @@ import { hashearPassword, verificarPassword } from "./utils/password";
 import { BloqueoLogin } from "./utils/bloqueo-login";
 import { type EstablecerPasswordDto } from "./dto/establecer-password.dto";
 
-const MAX_INTENTOS_CODIGO = 5;
+// CU-07: máximo 3 intentos de OTP. Mismo valor en turnos.service.ts (ver nota allá).
+const MAX_INTENTOS_CODIGO = 3;
 
 // Lo que se le devuelve al frontend. NUNCA incluye password_hash.
 const SELECT_USUARIO_PUBLICO = {

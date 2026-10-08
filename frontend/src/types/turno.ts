@@ -47,6 +47,14 @@ export interface ReservarTurnoPayload {
   codigo: string;
 }
 
+// Reserva con sesión iniciada: nombre y teléfono salen del token en el backend.
+export interface ReservarTurnoAutenticadoPayload {
+  servicios: number[];
+  fecha: string; // "YYYY-MM-DD"
+  hora_inicio: string; // "HH:mm"
+  codigo: string; // OTP enviado al teléfono del usuario logueado
+}
+
 export interface ReservarTurnoAdminPayload {
   servicios: number[];
   fecha: string;

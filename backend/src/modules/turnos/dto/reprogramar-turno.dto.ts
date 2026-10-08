@@ -1,15 +1,9 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsString, IsNotEmpty, Matches } from "class-validator";
+import { IsString, Matches } from "class-validator";
 
+// Reprogramar un turno propio (con sesión): el cliente sale del token, no se
+// manda teléfono. El turno conserva sus servicios.
 export class ReprogramarTurnoDto {
-  @ApiProperty({
-    example: "3644401020",
-    description: "Teléfono del cliente, para confirmar que el turno es suyo",
-  })
-  @IsString()
-  @IsNotEmpty()
-  telefono: string;
-
   @ApiProperty({ example: "2026-10-18" })
   @IsString()
   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: "fecha debe tener formato YYYY-MM-DD" })

@@ -22,6 +22,7 @@ import { AdminLayout } from "../components/layout/AdminLayout";
 import { UsuariosAdminPage } from "../pages/admin/UsuariosAdminPage";
 import { ServiciosPage } from "../pages/public/ServiciosPage";
 import { PerfilPage } from "../pages/public/PerfilPage";
+import { MisTurnosPage } from "../pages/public/MisTurnosPage";
 
 export function AppRouter() {
   return (
@@ -38,6 +39,14 @@ export function AppRouter() {
           element={
             <ProtectedRoute>
               <PerfilPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mis-turnos"
+          element={
+            <ProtectedRoute>
+              <MisTurnosPage />
             </ProtectedRoute>
           }
         />

@@ -6,9 +6,10 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: ReactNode;
+  size?: "md" | "lg";
 }
 
-export function Modal({ isOpen, onClose, title, children }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, size = "md" }: ModalProps) {
   // Cierra con la tecla Escape
   useEffect(() => {
     if (!isOpen) return;
@@ -29,7 +30,9 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-2xl bg-superficie p-6 shadow-lg"
+        className={`max-h-[90vh] w-full overflow-y-auto rounded-2xl bg-superficie p-6 shadow-lg ${
+          size === "lg" ? "max-w-xl" : "max-w-md"
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">

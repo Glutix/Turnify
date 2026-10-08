@@ -7,19 +7,23 @@ import { Modal } from "../../components/common/Modal";
 import { Toast } from "../../components/common/Toast";
 import { ConfirmDialog } from "../../components/servicios/ConfirmDialog";
 import { ReprogramarTurnoForm } from "../../components/turnos/ReprogramarTurnoForm";
+import { NuevoTurnoForm } from "../../components/turnos/NuevoTurnoForm";
 import {
   useAgenda,
   useCancelarTurnoAdmin,
   useReprogramarTurnoAdmin,
   useMarcarAtendido,
+  useReservarTurnoAdmin,
 } from "../../hooks/useTurnos";
-import { ETIQUETA_ESTADO, formatearFechaHora, type Turno } from "../../types/turno";
+import {
+  ETIQUETA_ESTADO,
+  formatearFechaHora,
+  type ReservarTurnoAdminPayload,
+  type Turno,
+} from "../../types/turno";
+import { hoyISO } from "../../utils/fechas";
 
 type ToastState = { message: string; type: "success" | "error" } | null;
-
-function hoyISO(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 export function AgendaPage() {
   const [fecha, setFecha] = useState(hoyISO());
@@ -29,10 +33,14 @@ export function AgendaPage() {
   const [turnoACancelar, setTurnoACancelar] = useState<Turno | null>(null);
   const [errorCancelar, setErrorCancelar] = useState("");
 
+  const [nuevoTurnoAbierto, setNuevoTurnoAbierto] = useState(false);
+  const [errorNuevoTurno, setErrorNuevoTurno] = useState("");
+
   const { data: turnos = [], isLoading } = useAgenda(fecha);
   const cancelarTurno = useCancelarTurnoAdmin();
   const reprogramarTurno = useReprogramarTurnoAdmin();
   const marcarAtendido = useMarcarAtendido();
+  const reservarTurnoAdmin = useReservarTurnoAdmin();
 
   function nombreServicios(turno: Turno): string {
     if (!turno.turno_servicios || turno.turno_servicios.length === 0) return "—";
@@ -65,6 +73,21 @@ export function AgendaPage() {
     );
   }
 
+  function handleSubmitNuevoTurno(payload: ReservarTurnoAdminPayload) {
+    setErrorNuevoTurno("");
+    reservarTurnoAdmin.mutate(payload, {
+      onSuccess: (turno) => {
+        setNuevoTurnoAbierto(false);
+        // La agenda salta al día del turno nuevo para que se vea enseguida.
+        setFecha(turno.fecha_hora_inicio.slice(0, 10));
+        setToast({ message: "Turno creado correctamente", type: "success" });
+      },
+      // 409 (horario ocupado) y demás errores del backend se muestran en el form.
+      onError: (error) =>
+        setErrorNuevoTurno(extraerMensaje(error, "No se pudo crear el turno")),
+    });
+  }
+
   function handleConfirmarCancelar() {
     if (!turnoACancelar) return;
     cancelarTurno.mutate(turnoACancelar.id, {
@@ -93,6 +116,16 @@ export function AgendaPage() {
         <Button variant="subtle" onClick={() => setFecha(hoyISO())}>
           Hoy
         </Button>
+        <div className="ml-auto">
+          <Button
+            onClick={() => {
+              setErrorNuevoTurno("");
+              setNuevoTurnoAbierto(true);
+            }}
+          >
+            Nuevo turno
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -120,7 +153,17 @@ export function AgendaPage() {
               render: (t) =>
                 t.estado === "confirmado" ? (
                   <div className="flex gap-3">
-                    <Button variant="link" onClick={() => handleMarcarAtendido(t)}>
+                    <Button
+                      variant="link"
+                      onClick={() => handleMarcarAtendido(t)}
+                      // Solo desde el día del turno (el backend también lo exige).
+                      disabled={t.fecha_hora_inicio.slice(0, 10) > hoyISO()}
+                      title={
+                        t.fecha_hora_inicio.slice(0, 10) > hoyISO()
+                          ? "Se habilita el día del turno"
+                          : undefined
+                      }
+                    >
                       Atendido
                     </Button>
                     <Button variant="link" onClick={() => setTurnoAReprogramar(t)}>
@@ -150,9 +193,26 @@ export function AgendaPage() {
         title="Reprogramar turno"
       >
         <ReprogramarTurnoForm
+          servicioIds={turnoAReprogramar?.turno_servicios?.map((ts) => ts.servicio_id) ?? []}
+          fechaHoraActual={turnoAReprogramar?.fecha_hora_inicio}
           onSubmit={handleSubmitReprogramar}
           onCancel={() => setTurnoAReprogramar(null)}
           isSubmitting={reprogramarTurno.isPending}
+        />
+      </Modal>
+
+      <Modal
+        isOpen={nuevoTurnoAbierto}
+        onClose={() => setNuevoTurnoAbierto(false)}
+        title="Nuevo turno"
+        size="lg"
+      >
+        <NuevoTurnoForm
+          fechaInicial={fecha}
+          onSubmit={handleSubmitNuevoTurno}
+          onCancel={() => setNuevoTurnoAbierto(false)}
+          isSubmitting={reservarTurnoAdmin.isPending}
+          errorMessage={errorNuevoTurno}
         />
       </Modal>
 

@@ -19,3 +19,8 @@ export function formatearPrecio(precio: string): string {
     currency: "ARS",
   });
 }
+// Duración máxima de un turno: 3 h 45 min. Duplicada en el backend
+// (turnos.service.ts → MAX_DURACION_TURNO_MINUTOS), que es quien la hace cumplir.
+export const MAX_DURACION_TURNO_MINUTOS = 225;
+export const MENSAJE_DURACION_MAXIMA =
+  "La duración máxima de un turno es de 3 h 45 min. Elegí menos servicios o sacá dos turnos para realizarte todos.";

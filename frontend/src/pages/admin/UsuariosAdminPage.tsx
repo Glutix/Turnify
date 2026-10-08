@@ -12,7 +12,6 @@ import {
   useUsuarios,
   useCrearUsuario,
   useActualizarUsuario,
-  useCambiarRolUsuario,
   useEliminarUsuario,
 } from "../../hooks/useUsuarios";
 import { useAuthStore } from "../../stores/authStore";
@@ -54,8 +53,6 @@ export function UsuariosAdminPage() {
   const [usuarioAEditar, setUsuarioAEditar] = useState<Usuario | null>(null);
   const [errorFormulario, setErrorFormulario] = useState("");
 
-  const [usuarioACambiarRol, setUsuarioACambiarRol] = useState<Usuario | null>(null);
-  const [errorRol, setErrorRol] = useState("");
   const [usuarioAEliminar, setUsuarioAEliminar] = useState<Usuario | null>(null);
   const [errorEliminar, setErrorEliminar] = useState("");
 
@@ -65,7 +62,6 @@ export function UsuariosAdminPage() {
   });
   const crearUsuario = useCrearUsuario();
   const actualizarUsuario = useActualizarUsuario();
-  const cambiarRol = useCambiarRolUsuario();
   const eliminarUsuario = useEliminarUsuario();
 
   function handleBuscar(e: FormEvent) {
@@ -117,27 +113,6 @@ export function UsuariosAdminPage() {
     );
   }
 
-  function pedirCambioRol(usuario: Usuario) {
-    setErrorRol("");
-    setUsuarioACambiarRol(usuario);
-  }
-
-  function handleConfirmarCambioRol() {
-    if (!usuarioACambiarRol) return;
-    const nuevoRol: RolUsuario = usuarioACambiarRol.rol === "admin" ? "cliente" : "admin";
-    cambiarRol.mutate(
-      { id: usuarioACambiarRol.id, rol: nuevoRol },
-      {
-        onSuccess: () => {
-          setUsuarioACambiarRol(null);
-          setToast({ message: `Rol actualizado: ${ETIQUETA_ROL[nuevoRol]}`, type: "success" });
-        },
-        onError: (error) =>
-          setErrorRol(extraerMensajeError(error, "No se pudo cambiar el rol")),
-      },
-    );
-  }
-
   function pedirEliminacion(usuario: Usuario) {
     setErrorEliminar("");
     setUsuarioAEliminar(usuario);
@@ -155,7 +130,6 @@ export function UsuariosAdminPage() {
     });
   }
 
-  const nuevoRol: RolUsuario = usuarioACambiarRol?.rol === "admin" ? "cliente" : "admin";
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
@@ -216,12 +190,9 @@ export function UsuariosAdminPage() {
                   <Button variant="link" onClick={() => abrirEditar(u)}>
                     Editar
                   </Button>
-                  {/* Sobre uno mismo no se cambia el rol ni se elimina (lo rechaza el backend). */}
+                  {/* Sobre uno mismo no se elimina (lo rechaza el backend). El cambio de rol no se ofrece en la UI para evitar errores humanos. */}
                   {u.id !== yo?.id && (
                     <>
-                      <Button variant="link" onClick={() => pedirCambioRol(u)}>
-                        {u.rol === "admin" ? "Quitar admin" : "Hacer admin"}
-                      </Button>
                       <Button variant="link" onClick={() => pedirEliminacion(u)}>
                         Eliminar
                       </Button>
@@ -263,16 +234,6 @@ export function UsuariosAdminPage() {
           />
         )}
       </Modal>
-
-      <ConfirmDialog
-        isOpen={usuarioACambiarRol !== null}
-        title="Cambiar rol"
-        message={`¿Querés cambiar el rol de ${usuarioACambiarRol ? nombreCompleto(usuarioACambiarRol) : "este usuario"} a ${ETIQUETA_ROL[nuevoRol]}?`}
-        onConfirm={handleConfirmarCambioRol}
-        onCancel={() => setUsuarioACambiarRol(null)}
-        isConfirming={cambiarRol.isPending}
-        errorMessage={errorRol}
-      />
 
       <ConfirmDialog
         isOpen={usuarioAEliminar !== null}

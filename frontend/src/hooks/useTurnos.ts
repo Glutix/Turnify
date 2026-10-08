@@ -9,12 +9,18 @@ import {
   obtenerHistorialPorUsuario,
   consultarDisponibilidad,
   reservarTurno,
+  reservarTurnoAutenticado,
+  obtenerMisTurnos,
+  obtenerDiasHabilitados,
+  cancelarMiTurno,
+  reprogramarMiTurno,
 } from "../api/turnos";
 import type {
   FiltrosTurnosAdmin,
   ReprogramarTurnoAdminPayload,
   ReservarTurnoAdminPayload,
   ReservarTurnoPayload,
+  ReservarTurnoAutenticadoPayload,
 } from "../types/turno";
 
 const QUERY_KEY_AGENDA = ["turnos", "agenda"];
@@ -33,8 +39,52 @@ export function useDisponibilidad(servicios: number[], fecha: string) {
 }
 
 export function useReservarTurno() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: ReservarTurnoPayload) => reservarTurno(payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY_TURNOS }),
+  });
+}
+
+export function useReservarTurnoAutenticado() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: ReservarTurnoAutenticadoPayload) => reservarTurnoAutenticado(payload),
+    // Sin esto, "Mis turnos" mostraba la lista cacheada y la reserva nueva
+    // recién aparecía después de recargar la página.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY_TURNOS }),
+  });
+}
+
+export function useDiasHabilitados(desde: string, hasta: string) {
+  return useQuery({
+    queryKey: [...QUERY_KEY_TURNOS, "dias-habilitados", desde, hasta],
+    queryFn: () => obtenerDiasHabilitados(desde, hasta),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useMisTurnos() {
+  return useQuery({
+    queryKey: ["turnos", "mis-turnos"],
+    queryFn: obtenerMisTurnos,
+  });
+}
+
+export function useCancelarMiTurno() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => cancelarMiTurno(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY_TURNOS }),
+  });
+}
+
+export function useReprogramarMiTurno() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: ReprogramarTurnoAdminPayload }) =>
+      reprogramarMiTurno(id, payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY_TURNOS }),
   });
 }
 

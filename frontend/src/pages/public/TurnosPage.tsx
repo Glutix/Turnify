@@ -1,5 +1,6 @@
 // frontend\src\pages\public\TurnosPage.tsx
 import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { isAxiosError } from "axios";
 import { Button } from "../../components/common/Button";
 import { Input } from "../../components/common/Input";
@@ -7,7 +8,14 @@ import { IconPhone, IconUser, IconClock, IconArrowLeft } from "../../components/
 import { CodeStep } from "../../components/auth/CodeStep";
 import { solicitarCodigo } from "../../api/auth";
 import { useServicios } from "../../hooks/useServicios";
-import { useDisponibilidad, useReservarTurno } from "../../hooks/useTurnos";
+import {
+  useDisponibilidad,
+  useReservarTurno,
+  useReservarTurnoAutenticado,
+} from "../../hooks/useTurnos";
+import { useAuthStore } from "../../stores/authStore";
+import { hoyISO } from "../../utils/fechas";
+import { MAX_DURACION_TURNO_MINUTOS, MENSAJE_DURACION_MAXIMA } from "../../utils/servicio";
 import { formatearDuracion, formatearPrecio, precioANumero } from "../../utils/servicio";
 import type { Servicio } from "../../types/servicio";
 import type { SlotDisponible, Turno } from "../../types/turno";
@@ -19,18 +27,29 @@ const LARGO_CODIGO = 6;
 const COOLDOWN_SEGUNDOS = 10; // mismo ttl que el ThrottlerGuard de /auth/solicitar-codigo
 const MAX_DIGITS_TELEFONO = 10;
 
-function hoyISO(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function formatearTelefono(valorCrudo: string): string {
   const soloDigitos = valorCrudo.replace(/\D/g, "").slice(0, MAX_DIGITS_TELEFONO);
   if (soloDigitos.length <= 4) return soloDigitos;
   return `${soloDigitos.slice(0, 4)}-${soloDigitos.slice(4)}`;
 }
 
+// El teléfono guardado del usuario es "+5493644401020"; /auth/solicitar-codigo
+// espera "3644-401020" (característica + número, sin +54 ni 9).
+function telefonoParaOtp(telefonoGuardado: string): string {
+  let digitos = telefonoGuardado.replace(/\D/g, "");
+  if (digitos.startsWith("549")) digitos = digitos.slice(3);
+  return formatearTelefono(digitos);
+}
+
 export function TurnosPage() {
   const [paso, setPaso] = useState<Paso>("servicios");
+
+  // Con sesión iniciada no se piden nombre ni teléfono (salen de la cuenta);
+  // el OTP se mantiene igual como verificación anti-bot. "Reservar para otra
+  // persona" vuelve al flujo de invitado (nombre + teléfono + OTP de esa persona).
+  const usuarioLogueado = useAuthStore((estado) => estado.usuario);
+  const [otraPersona, setOtraPersona] = useState(false);
+  const reservaPropia = usuarioLogueado !== null && !otraPersona;
 
   // Paso 1: servicios
   const { data: servicios = [], isLoading: cargandoServicios } = useServicios();
@@ -63,6 +82,11 @@ export function TurnosPage() {
   const [turnoConfirmado, setTurnoConfirmado] = useState<Turno | null>(null);
 
   const reservarTurno = useReservarTurno();
+  const reservarTurnoAutenticado = useReservarTurnoAutenticado();
+
+  // Teléfono al que se manda el OTP (y que se muestra en el paso del código).
+  const telefonoOtp =
+    reservaPropia && usuarioLogueado ? telefonoParaOtp(usuarioLogueado.telefono) : telefono;
 
   // Recibe el código como parámetro explícito (no lo lee de estado) a
   // propósito: se llama inmediatamente después de setCodigo(valor) en
@@ -72,53 +96,71 @@ export function TurnosPage() {
     (codigoIngresado: string) => {
       if (!horaSeleccionada) return;
       setEstadoOtp("verificando");
-      reservarTurno.mutate(
-        {
-          servicios: serviciosSeleccionados,
-          fecha,
-          hora_inicio: horaSeleccionada,
-          nombre,
-          telefono,
-          codigo: codigoIngresado,
+      const callbacks = {
+        onSuccess: (turno: Turno) => {
+          setEstadoOtp("correcto");
+          window.setTimeout(() => {
+            setTurnoConfirmado(turno);
+            setPaso("exito");
+          }, 1400);
         },
-        {
-          onSuccess: (turno) => {
-            setEstadoOtp("correcto");
-            window.setTimeout(() => {
-              setTurnoConfirmado(turno);
-              setPaso("exito");
-            }, 1400);
-          },
-          onError: (error) => {
-            // 409: el horario se ocupó justo en este momento (carrera entre
-            // consultar disponibilidad y confirmar) — no es un error de OTP.
-            if (isAxiosError(error) && error.response?.status === 409) {
-              setEstadoOtp("idle");
-              setCodigo("");
-              setMensajeHorario(
-                error.response.data?.message ?? "Ese horario ya no está disponible, elegí otro.",
-              );
-              setPaso("horario");
-              return;
-            }
+        onError: (error: unknown) => {
+          // 409: el horario se ocupó justo en este momento (carrera entre
+          // consultar disponibilidad y confirmar) — no es un error de OTP.
+          if (isAxiosError(error) && error.response?.status === 409) {
+            setEstadoOtp("idle");
+            setCodigo("");
+            setMensajeHorario(
+              error.response.data?.message ?? "Ese horario ya no está disponible, elegí otro.",
+            );
+            setPaso("horario");
+            return;
+          }
 
-            const data = isAxiosError(error) ? error.response?.data : undefined;
-            const intentos =
-              typeof data?.intentosRestantes === "number" ? data.intentosRestantes : null;
-            setIntentosRestantes(intentos);
-            setCodigoBloqueado(intentos === 0);
-            setErrorOtp(data?.message ?? "No se pudo validar el código");
-            setEstadoOtp("incorrecto");
-            window.setTimeout(() => {
-              setEstadoOtp("idle");
-              setCodigo("");
-              setResetKeyOtp((k) => k + 1);
-            }, 900);
-          },
+          const data = isAxiosError(error) ? error.response?.data : undefined;
+          const intentos =
+            typeof data?.intentosRestantes === "number" ? data.intentosRestantes : null;
+          setIntentosRestantes(intentos);
+          setCodigoBloqueado(intentos === 0);
+          setErrorOtp(data?.message ?? "No se pudo validar el código");
+          setEstadoOtp("incorrecto");
+          window.setTimeout(() => {
+            setEstadoOtp("idle");
+            setCodigo("");
+            setResetKeyOtp((k) => k + 1);
+          }, 900);
         },
-      );
+      };
+
+      if (reservaPropia) {
+        reservarTurnoAutenticado.mutate(
+          { servicios: serviciosSeleccionados, fecha, hora_inicio: horaSeleccionada, codigo: codigoIngresado },
+          callbacks,
+        );
+      } else {
+        reservarTurno.mutate(
+          {
+            servicios: serviciosSeleccionados,
+            fecha,
+            hora_inicio: horaSeleccionada,
+            nombre,
+            telefono,
+            codigo: codigoIngresado,
+          },
+          callbacks,
+        );
+      }
     },
-    [horaSeleccionada, serviciosSeleccionados, fecha, nombre, telefono, reservarTurno],
+    [
+      horaSeleccionada,
+      serviciosSeleccionados,
+      fecha,
+      nombre,
+      telefono,
+      reservaPropia,
+      reservarTurno,
+      reservarTurnoAutenticado,
+    ],
   );
 
   // Dispara el envío automático al completar los 6 dígitos. Vive en el
@@ -144,6 +186,7 @@ export function TurnosPage() {
 
   const serviciosElegidos = servicios.filter((s) => serviciosSeleccionados.includes(s.id));
   const duracionTotal = serviciosElegidos.reduce((acc, s) => acc + s.duracion_minutos, 0);
+  const excedeDuracionMaxima = duracionTotal > MAX_DURACION_TURNO_MINUTOS;
   const precioTotal = serviciosElegidos.reduce((acc, s) => acc + precioANumero(s.precio), 0);
 
   function toggleServicio(servicio: Servicio) {
@@ -167,18 +210,20 @@ export function TurnosPage() {
 
   async function handleSubmitDatos(e: FormEvent) {
     e.preventDefault();
-    if (!nombre.trim()) {
-      setErrorDatos("Ingresá tu nombre");
-      return;
-    }
-    if (telefono.replace(/\D/g, "").length !== MAX_DIGITS_TELEFONO) {
-      setErrorDatos("Ingresá un teléfono válido");
-      return;
+    if (!reservaPropia) {
+      if (!nombre.trim()) {
+        setErrorDatos("Ingresá tu nombre");
+        return;
+      }
+      if (telefono.replace(/\D/g, "").length !== MAX_DIGITS_TELEFONO) {
+        setErrorDatos("Ingresá un teléfono válido");
+        return;
+      }
     }
     setErrorDatos("");
     setEnviandoCodigo(true);
     try {
-      await solicitarCodigo(telefono);
+      await solicitarCodigo(telefonoOtp);
       setCooldownReenvio(COOLDOWN_SEGUNDOS);
       setCodigo("");
       setEstadoOtp("idle");
@@ -199,7 +244,7 @@ export function TurnosPage() {
   async function handleReenviar() {
     if (cooldownReenvio > 0) return;
     try {
-      await solicitarCodigo(telefono);
+      await solicitarCodigo(telefonoOtp);
       setCooldownReenvio(COOLDOWN_SEGUNDOS);
       setCodigo("");
       setResetKeyOtp((k) => k + 1);
@@ -233,8 +278,24 @@ export function TurnosPage() {
         <p className="mt-3 text-sm text-espresso/70">
           Te esperamos el <strong>{fecha}</strong> a las <strong>{horaSeleccionada}</strong>.
         </p>
-        <p className="mt-1 text-xs text-espresso/50">
-          Guardá tu teléfono — lo vas a necesitar para consultar, cancelar o reprogramar este turno.
+        <p className="mt-3 text-xs text-espresso/60">
+          {usuarioLogueado ? (
+            <>
+              Podés consultarlo, reprogramarlo o cancelarlo desde{" "}
+              <Link to="/mis-turnos" className="text-rosewood underline">
+                Mis turnos
+              </Link>
+              .
+            </>
+          ) : (
+            <>
+              Para consultarlo, reprogramarlo o cancelarlo{" "}
+              <Link to="/login" className="text-rosewood underline">
+                ingresá con tu teléfono
+              </Link>{" "}
+              (te enviamos un código por WhatsApp) y entrá a Mis turnos.
+            </>
+          )}
         </p>
       </div>
     );
@@ -290,6 +351,12 @@ export function TurnosPage() {
               })}
           </div>
 
+          {excedeDuracionMaxima && (
+            <p className="rounded-xl bg-rosewood/5 px-4 py-3 text-sm text-rosewood">
+              {MENSAJE_DURACION_MAXIMA}
+            </p>
+          )}
+
           {serviciosSeleccionados.length > 0 && (
             <div className="sticky bottom-4 mt-4 flex items-center justify-between rounded-xl border border-espresso/10 bg-superficie p-4 shadow-md">
               <div className="text-sm text-espresso/70">
@@ -298,7 +365,9 @@ export function TurnosPage() {
                   {precioTotal.toLocaleString("es-AR", { style: "currency", currency: "ARS" })}
                 </span>
               </div>
-              <Button onClick={irAHorario}>Elegir horario</Button>
+              <Button onClick={irAHorario} disabled={excedeDuracionMaxima}>
+                Elegir horario
+              </Button>
             </div>
           )}
         </div>
@@ -386,44 +455,87 @@ export function TurnosPage() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmitDatos} className="flex flex-col gap-5">
-            <Input
-              label="Nombre"
-              icon={<IconUser size={18} />}
-              value={nombre}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setNombre(e.target.value)}
-              placeholder="María"
-              disabled={enviandoCodigo}
-              required
-            />
-            <Input
-              label="Teléfono"
-              type="tel"
-              inputMode="numeric"
-              autoComplete="tel-national"
-              placeholder="3644-401020"
-              prefix="+54"
-              icon={<IconPhone size={18} />}
-              value={telefono}
-              onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                setTelefono(formatearTelefono(e.target.value))
-              }
-              maxLength={11}
-              disabled={enviandoCodigo}
-              required
-            />
-            {errorDatos && <p className="text-sm text-rosewood">{errorDatos}</p>}
-            <Button type="submit" fullWidth disabled={enviandoCodigo}>
-              {enviandoCodigo ? "Enviando código..." : "Confirmar y recibir código"}
-            </Button>
-          </form>
+          {reservaPropia && usuarioLogueado ? (
+            <form onSubmit={handleSubmitDatos} className="flex flex-col gap-5">
+              <div className="rounded-xl border border-espresso/10 p-4 text-sm">
+                <p className="text-espresso/60">Reservando como</p>
+                <p className="font-medium text-espresso">
+                  {usuarioLogueado.nombre} {usuarioLogueado.apellido ?? ""}
+                </p>
+                <p className="mt-1 text-espresso/60">+54 {telefonoOtp}</p>
+              </div>
+              <p className="text-xs text-espresso/60">
+                Te enviamos un código por WhatsApp a este número para confirmar que sos vos.
+              </p>
+              {errorDatos && <p className="text-sm text-rosewood">{errorDatos}</p>}
+              <Button type="submit" fullWidth disabled={enviandoCodigo}>
+                {enviandoCodigo ? "Enviando código..." : "Confirmar y recibir código"}
+              </Button>
+              <button
+                type="button"
+                onClick={() => {
+                  setOtraPersona(true);
+                  setErrorDatos("");
+                }}
+                className="text-center text-xs uppercase tracking-widest text-espresso/50 hover:text-rosewood"
+              >
+                Reservar para otra persona
+              </button>
+            </form>
+          ) : (
+            <>
+            <form onSubmit={handleSubmitDatos} className="flex flex-col gap-5">
+              <Input
+                label="Nombre"
+                icon={<IconUser size={18} />}
+                value={nombre}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setNombre(e.target.value)}
+                placeholder="María"
+                disabled={enviandoCodigo}
+                required
+              />
+              <Input
+                label="Teléfono"
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel-national"
+                placeholder="3644-401020"
+                prefix="+54"
+                icon={<IconPhone size={18} />}
+                value={telefono}
+                onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                  setTelefono(formatearTelefono(e.target.value))
+                }
+                maxLength={11}
+                disabled={enviandoCodigo}
+                required
+              />
+              {errorDatos && <p className="text-sm text-rosewood">{errorDatos}</p>}
+              <Button type="submit" fullWidth disabled={enviandoCodigo}>
+                {enviandoCodigo ? "Enviando código..." : "Confirmar y recibir código"}
+              </Button>
+            </form>
+              {usuarioLogueado && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOtraPersona(false);
+                    setErrorDatos("");
+                  }}
+                  className="mt-4 w-full text-center text-xs uppercase tracking-widest text-espresso/50 hover:text-rosewood"
+                >
+                  Volver a reservar con mi cuenta
+                </button>
+              )}
+            </>
+          )}
         </div>
       )}
 
       {/* Paso 4: OTP (reutiliza CodeStep de auth tal cual) */}
       {paso === "otp" && (
         <CodeStep
-          telefono={telefono}
+          telefono={telefonoOtp}
           codigo={codigo}
           onCodigoChange={manejarCambioCodigo}
           onVolver={() => setPaso("datos")}

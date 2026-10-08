@@ -183,6 +183,21 @@ describe("AuthService", () => {
     });
   });
 
+  describe("validarCodigo — máximo 3 intentos (CU-07)", () => {
+    it("fallo → quedan 2 intentos; con 3 gastados responde 400 intentosRestantes 0", async () => {
+      prismaMock.otpVerificacion.findFirst.mockResolvedValue({ id: 1, codigo: "123456", intentos: 0 });
+      prismaMock.otpVerificacion.update.mockResolvedValue({ id: 1, intentos: 1 });
+      await expect(service.validarCodigo(TELEFONO, "000000")).rejects.toMatchObject({
+        response: { intentosRestantes: 2 },
+      });
+
+      prismaMock.otpVerificacion.findFirst.mockResolvedValue({ id: 1, codigo: "123456", intentos: 3 });
+      await expect(service.validarCodigo(TELEFONO, "123456")).rejects.toMatchObject({
+        response: { intentosRestantes: 0 },
+      });
+    });
+  });
+
   describe("validarCodigo", () => {
     it("no devuelve password_hash: pide solo los campos públicos", async () => {
       prismaMock.otpVerificacion.findFirst.mockResolvedValue({ id: 1, codigo: "123456", intentos: 0 });

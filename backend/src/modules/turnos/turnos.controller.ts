@@ -11,11 +11,12 @@ import {
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiQuery } from "@nestjs/swagger";
 import { TurnosService } from "./turnos.service";
-import { SoloAdmin } from "../auth/decorators/auth.decorators";
-// Sin "type" en estos 4 (son los DTOs de @Body() de este controller — ver
+import { SoloAdmin, Autenticado, UsuarioActual } from "../auth/decorators/auth.decorators";
+import { type UsuarioAutenticado } from "../auth/types/usuario-autenticado";
+// Sin "type" en estos (son los DTOs de @Body() de este controller — ver
 // el bug que ya resolvimos en horarios/usuarios con ValidationPipe).
 import { ReservarTurnoDto } from "./dto/reservar-turno.dto";
-import { CancelarTurnoDto } from "./dto/cancelar-turno.dto";
+import { ReservarTurnoAutenticadoDto } from "./dto/reservar-turno-autenticado.dto";
 import { ReprogramarTurnoDto } from "./dto/reprogramar-turno.dto";
 import { ReservarTurnoAdminDto } from "./dto/reservar-turno-admin.dto";
 import { ReprogramarTurnoAdminDto } from "./dto/reprogramar-turno-admin.dto";
@@ -28,7 +29,7 @@ export class TurnosController {
   constructor(private readonly turnosService: TurnosService) {}
 
   // ============================================================
-  // Público / invitado (CU-06, CU-07, CU-09, CU-10, CU-11)
+  // Público / invitado (CU-06, CU-07) y cliente con sesión (CU-09, CU-10, CU-11)
   // ============================================================
 
   @Get("disponibilidad")
@@ -54,30 +55,62 @@ export class TurnosController {
     return this.turnosService.consultarDisponibilidad(servicios, fecha);
   }
 
+  @Get("dias-habilitados")
+  @ApiOperation({
+    summary: "Días con atención entre dos fechas (sin fines de semana cerrados ni feriados)",
+  })
+  @ApiQuery({ name: "desde", example: "2026-10-08" })
+  @ApiQuery({ name: "hasta", example: "2026-11-30" })
+  diasHabilitados(@Query("desde") desde: string, @Query("hasta") hasta: string) {
+    return this.turnosService.diasHabilitados(desde, hasta);
+  }
+
   @Post("reservar")
   @ApiOperation({ summary: "Reservar turno como invitado, valida OTP (CU-07)" })
   reservar(@Body() dto: ReservarTurnoDto) {
     return this.turnosService.reservarComoInvitado(dto);
   }
 
-  @Get("historial")
-  @ApiOperation({ summary: "Historial de turnos por teléfono (CU-11)" })
-  @ApiQuery({ name: "telefono", example: "3644401020" })
-  historial(@Query("telefono") telefono: string) {
-    if (!telefono) throw new BadRequestException("Falta el parámetro telefono");
-    return this.turnosService.historialPorTelefono(telefono);
+  @Autenticado()
+  @Post("reservar-autenticado")
+  @ApiOperation({
+    summary: "Reservar turno con sesión iniciada: datos del token + OTP anti-bot (CU-07)",
+  })
+  reservarAutenticado(
+    @UsuarioActual() actual: UsuarioAutenticado,
+    @Body() dto: ReservarTurnoAutenticadoDto,
+  ) {
+    return this.turnosService.reservarComoAutenticado(actual.id, dto);
   }
 
-  @Patch(":id/cancelar")
-  @ApiOperation({ summary: "Cancelar turno propio, valida 12hs de anticipación (CU-09)" })
-  cancelar(@Param("id", ParseIntPipe) id: number, @Body() dto: CancelarTurnoDto) {
-    return this.turnosService.cancelarComoCliente(id, dto.telefono);
+  // ---- Cliente con sesión (CU-09, CU-10, CU-11) ----
+
+  @Autenticado()
+  @Get("mis-turnos")
+  @ApiOperation({ summary: "Mis turnos: historial del usuario logueado (CU-11)" })
+  misTurnos(@UsuarioActual() actual: UsuarioAutenticado) {
+    return this.turnosService.misTurnos(actual.id);
   }
 
-  @Patch(":id/reprogramar")
-  @ApiOperation({ summary: "Reprogramar turno propio, valida 12hs y disponibilidad (CU-10)" })
-  reprogramar(@Param("id", ParseIntPipe) id: number, @Body() dto: ReprogramarTurnoDto) {
-    return this.turnosService.reprogramarComoCliente(id, dto);
+  @Autenticado()
+  @Patch("mis-turnos/:id/cancelar")
+  @ApiOperation({ summary: "Cancelar un turno propio, valida 12hs de anticipación (CU-09)" })
+  cancelarMiTurno(
+    @UsuarioActual() actual: UsuarioAutenticado,
+    @Param("id", ParseIntPipe) id: number,
+  ) {
+    return this.turnosService.cancelarMiTurno(actual.id, id);
+  }
+
+  @Autenticado()
+  @Patch("mis-turnos/:id/reprogramar")
+  @ApiOperation({ summary: "Reprogramar un turno propio, valida 12hs y disponibilidad (CU-10)" })
+  reprogramarMiTurno(
+    @UsuarioActual() actual: UsuarioAutenticado,
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: ReprogramarTurnoDto,
+  ) {
+    return this.turnosService.reprogramarMiTurno(actual.id, id, dto);
   }
 
   // ============================================================
