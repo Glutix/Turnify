@@ -21,6 +21,7 @@ import {
   combinarFechaYMinutos,
   seSuperponen,
   soloFecha,
+  ahoraDelSalon,
 } from "./utils/franja-horaria.util";
 
 const PASO_MINUTOS_SLOT = 15;
@@ -71,7 +72,7 @@ export class TurnosService {
       select: { fecha_hora_inicio: true, fecha_hora_fin: true },
     });
 
-    const ahora = new Date();
+    const ahora = ahoraDelSalon();
     const slots: { hora_inicio: string; hora_fin: string }[] = [];
 
     for (const franja of franjas) {
@@ -168,6 +169,7 @@ export class TurnosService {
       throw new UnauthorizedException("Este turno no pertenece a ese teléfono");
     }
 
+    this.asegurarTurnoConfirmado(turno.estado, "cancelar");
     this.asegurarAnticipacionMinima(turno.fecha_hora_inicio);
 
     const actualizado = await this.prisma.turno.update({
@@ -195,6 +197,7 @@ export class TurnosService {
       throw new UnauthorizedException("Este turno no pertenece a ese teléfono");
     }
 
+    this.asegurarTurnoConfirmado(turnoOriginal.estado, "reprogramar");
     this.asegurarAnticipacionMinima(turnoOriginal.fecha_hora_inicio);
 
     const duracionTotalMinutos = turnoOriginal.turno_servicios.reduce(
@@ -270,7 +273,7 @@ export class TurnosService {
   // puede pegarle a estos endpoints. Hay que resolverlo antes de producción.
 
   async agendaAdmin(fechaStr?: string) {
-    const fecha = fechaStr ? soloFecha(fechaStr) : soloFecha(new Date().toISOString().slice(0, 10));
+    const fecha = fechaStr ? soloFecha(fechaStr) : soloFecha(ahoraDelSalon().toISOString().slice(0, 10));
     const finDia = combinarFechaYMinutos(fecha, 24 * 60);
 
     return this.prisma.turno.findMany({
@@ -354,6 +357,7 @@ export class TurnosService {
 
   async reprogramarComoAdmin(turnoId: number, fechaStr: string, horaInicio: string) {
     const turnoOriginal = await this.findOneConServiciosYUsuario(turnoId);
+    this.asegurarTurnoConfirmado(turnoOriginal.estado, "reprogramar");
 
     const duracionTotalMinutos = turnoOriginal.turno_servicios.reduce(
       (acc, ts) => acc + ts.servicio.duracion_minutos,
@@ -576,7 +580,7 @@ export class TurnosService {
 
   // RF11/RF12/RF13: 12hs mínimas de anticipación para cancelar/reprogramar.
   private asegurarAnticipacionMinima(fechaHoraInicio: Date) {
-    const horasRestantes = (fechaHoraInicio.getTime() - Date.now()) / (1000 * 60 * 60);
+    const horasRestantes = (fechaHoraInicio.getTime() - ahoraDelSalon().getTime()) / (1000 * 60 * 60);
     if (horasRestantes < HORAS_MINIMAS_ANTICIPACION) {
       throw new BadRequestException(
         "Ya falta menos de 12hs para el turno — contactá directamente a la profesional para resolverlo.",

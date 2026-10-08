@@ -51,6 +51,16 @@ export function seSuperponen(
   return aInicio < bFin && bInicio < aFin;
 }
 
+// Convención del proyecto: las fechas/horas de turnos y franjas se guardan como
+// "hora de pared" del salón dentro de un Date en UTC (08:00 del salón = 08:00Z).
+// Por eso "ahora" también tiene que expresarse en hora de pared del salón: comparar
+// contra Date.now() real (UTC) corre todo 3 horas en Argentina.
+// Configurable con SALON_UTC_OFFSET_MINUTES (default -180 = Argentina, UTC-3).
+export function ahoraDelSalon(): Date {
+  const offsetMinutos = Number(process.env.SALON_UTC_OFFSET_MINUTES ?? -180);
+  return new Date(Date.now() + offsetMinutos * 60 * 1000);
+}
+
 export function soloFecha(fechaStr: string): Date {
   // fechaStr esperado "YYYY-MM-DD". Se interpreta en UTC a propósito, mismo
   // criterio que usa horarios.service.ts para franjas/excepciones.
