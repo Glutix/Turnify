@@ -55,10 +55,4 @@ export class ProductosController {
   ) {
     return this.productosService.actualizarStock(id, dto);
   }
-
-  @SoloAdmin()
-  @Delete(":id")
-  remove(@Param("id", ParseIntPipe) id: number) {
-    return this.productosService.remove(id);
-  }
 }

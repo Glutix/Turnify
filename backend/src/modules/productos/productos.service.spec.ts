@@ -171,30 +171,22 @@ describe("ProductosService", () => {
         expect.objectContaining({ where: { id: 1 }, data: { stock: 25 } }),
       );
     });
-  });
 
-  describe("remove", () => {
-    it("lanza NotFoundException y no modifica nada si no existe", async () => {
-      prismaMock.producto.findUnique.mockResolvedValue(null);
-
-      await expect(service.remove(999)).rejects.toThrow(NotFoundException);
-      expect(prismaMock.producto.update).not.toHaveBeenCalled();
-    });
-
-    it("desactiva el producto en lugar de borrarlo", async () => {
+    it("permite desactivar y reactivar el producto con activo", async () => {
       prismaMock.producto.findUnique.mockResolvedValue(producto);
-      prismaMock.producto.update.mockResolvedValue({
-        ...producto,
-        activo: false,
-      });
+      prismaMock.producto.update.mockResolvedValue(producto);
 
-      const resultado = await service.remove(1);
+      await service.update(1, { activo: false });
+      await service.update(1, { activo: true });
 
-      expect(prismaMock.producto.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { activo: false },
-      });
-      expect(resultado.mensaje).toContain("1");
+      expect(prismaMock.producto.update).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ data: { activo: false } }),
+      );
+      expect(prismaMock.producto.update).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ data: { activo: true } }),
+      );
     });
   });
 });

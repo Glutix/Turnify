@@ -88,17 +88,4 @@ export class ProductosService {
       include: INCLUIR_RELACIONES,
     });
   }
-
-  // Borrado lógico: el producto queda inactivo y se conserva para no perder
-  // el historial de pedidos que lo referencian.
-  async remove(id: number) {
-    await this.findOne(id);
-
-    await this.prisma.producto.update({
-      where: { id },
-      data: { activo: false },
-    });
-
-    return { mensaje: `Producto ${id} eliminado del catálogo (desactivado)` };
-  }
 }
