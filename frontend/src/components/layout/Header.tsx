@@ -61,9 +61,12 @@ export function Header() {
               </div>
 
               <div className="flex flex-col">
-                <span className="text-sm font-semibold text-espresso">
+                <NavLink
+                  to="/perfil"
+                  className="text-sm font-semibold text-espresso transition hover:text-rosewood"
+                >
                   {usuario.nombre}
-                </span>
+                </NavLink>
 
                 <button
                   type="button"
@@ -126,9 +129,13 @@ export function Header() {
               </div>
 
               <div className="flex flex-col">
-                <span className="text-sm font-semibold text-espresso">
-                  {usuario.nombre}
-                </span>
+                <NavLink
+                  to="/perfil"
+                  onClick={() => setMenuAbierto(false)}
+                  className="text-sm font-semibold text-espresso"
+                >
+                  {usuario.nombre} · Mi perfil
+                </NavLink>
 
                 <button
                   type="button"

@@ -16,6 +16,17 @@ export async function getUsuarios(filtros: FiltrosUsuarios = {}): Promise<Usuari
   return data;
 }
 
+// Perfil del usuario logueado (CU-12 / CU-38). No necesita id: lo toma del token.
+export async function getMiPerfil(): Promise<Usuario> {
+  const { data } = await api.get("/usuarios/me");
+  return data;
+}
+
+export async function actualizarMiPerfil(payload: ActualizarUsuarioPayload): Promise<Usuario> {
+  const { data } = await api.patch("/usuarios/me", payload);
+  return data;
+}
+
 export async function crearUsuario(payload: CrearUsuarioPayload): Promise<Usuario> {
   const { data } = await api.post("/usuarios", payload);
   return data;

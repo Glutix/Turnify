@@ -11,6 +11,8 @@ interface CredentialsStepProps {
   onContrasenaChange: (value: string) => void;
   onSubmit: (e: FormEvent) => void;
   onIrATelefono: () => void;
+  error?: string;
+  isLoading?: boolean;
 }
 
 export function CredentialsStep({
@@ -20,16 +22,19 @@ export function CredentialsStep({
   onContrasenaChange,
   onSubmit,
   onIrATelefono,
+  error,
+  isLoading = false,
 }: CredentialsStepProps) {
   const [mostrarContrasena, setMostrarContrasena] = useState(false);
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-6">
       <Input
-        label="Correo o teléfono"
-        type="text"
+        label="Teléfono"
+        type="tel"
+        inputMode="tel"
         autoComplete="username"
-        placeholder="tu@correo.com"
+        placeholder="3644 401020"
         icon={<IconUser size={18} />}
         value={identificador}
         onChange={(e) => onIdentificadorChange(e.target.value)}
@@ -63,8 +68,14 @@ export function CredentialsStep({
         required
       />
 
-      <Button type="submit" variant="primary" fullWidth>
-        Iniciar sesión
+      {error && (
+        <p role="alert" className="text-center text-xs text-rosewood">
+          {error}
+        </p>
+      )}
+
+      <Button type="submit" variant="primary" fullWidth disabled={isLoading}>
+        {isLoading ? "Ingresando..." : "Iniciar sesión"}
       </Button>
 
       <Button

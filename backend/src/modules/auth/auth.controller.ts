@@ -7,6 +7,11 @@ import { AuthService } from "./auth.service";
 import { SolicitarCodigoDto } from "./dto/solicitar-codigo.dto";
 import { ValidarCodigoDto } from "./dto/validar-codigo.dto";
 import { RegistroDto } from "./dto/registro.dto";
+// Sin "type" a propósito: son @Body() y ValidationPipe necesita la clase real.
+import { LoginDto } from "./dto/login.dto";
+import { EstablecerPasswordDto } from "./dto/establecer-password.dto";
+import { Autenticado, UsuarioActual } from "./decorators/auth.decorators";
+import { type UsuarioAutenticado } from "./types/usuario-autenticado";
 
 @ApiTags("auth")
 @Controller("auth")
@@ -33,6 +38,26 @@ export class AuthController {
   })
   async validarCodigo(@Body() dto: ValidarCodigoDto) {
     return this.authService.validarCodigo(dto.telefono, dto.codigo);
+  }
+
+  @Post("login")
+  @HttpCode(200)
+  @ApiOperation({
+    summary: "Login con teléfono y contraseña. 5 fallos bloquean 15 minutos (429)",
+  })
+  async login(@Body() dto: LoginDto) {
+    return this.authService.loginConPassword(dto.telefono, dto.password);
+  }
+
+  @Autenticado()
+  @Post("password")
+  @HttpCode(200)
+  @ApiOperation({ summary: "Crea o cambia la contraseña del usuario logueado" })
+  async establecerPassword(
+    @Body() dto: EstablecerPasswordDto,
+    @UsuarioActual() actual: UsuarioAutenticado,
+  ) {
+    return this.authService.establecerPassword(actual.id, dto);
   }
 
   @Post("registro")

@@ -10,8 +10,9 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Prisma, RolUsuario } from "@prisma/client";
+import { type Prisma, RolUsuario } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { esErrorPrisma } from "../../prisma/prisma-errors.util";
 import { normalizarTelefono } from "../auth/utils/normalizar-telefono";
 import { type UsuarioAutenticado } from "../auth/types/usuario-autenticado";
 import { type CrearUsuarioDto } from "./dto/crear-usuario.dto";
@@ -68,6 +69,19 @@ export class UsuariosService {
       orderBy: [{ nombre: "asc" }, { apellido: "asc" }],
       select: SELECT_USUARIO,
     });
+  }
+
+  // GET /api/usuarios/me — Perfil propio. Suma `tiene_password` (sin exponer el hash)
+  // para que "Mi perfil" sepa si pedir la contraseña actual al cambiarla.
+  async miPerfil(id: number) {
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { id },
+      select: { ...SELECT_USUARIO, password_hash: true },
+    });
+    if (!usuario) throw new NotFoundException(`Usuario con id ${id} no encontrado`);
+
+    const { password_hash, ...resto } = usuario;
+    return { ...resto, tiene_password: !!password_hash };
   }
 
   // GET /api/usuarios/:id — Retorna un usuario por ID
@@ -202,11 +216,22 @@ export class UsuariosService {
       throw new ConflictException("No podés eliminar tu propio usuario");
     }
 
+    // Chequeo previo: turnos y pedidos tienen onDelete: Restrict, así que Postgres
+    // rechazaría el DELETE. Contarlos antes permite un mensaje claro (y no depender
+    // de cómo el driver adapter reporte el error de FK).
+    const [turnos, pedidos] = await Promise.all([
+      this.prisma.turno.count({ where: { usuario_id: id } }),
+      this.prisma.pedido.count({ where: { usuario_id: id } }),
+    ]);
+    if (turnos > 0 || pedidos > 0) {
+      throw new ConflictException(this.mensajeDependencias(turnos, pedidos));
+    }
+
     try {
       await this.prisma.usuario.delete({ where: { id } });
     } catch (error) {
-      // P2003 = FK con dependencias (turnos / pedidos con onDelete: Restrict)
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
+      // Red de seguridad ante una carrera (se creó un turno/pedido entre el chequeo y el DELETE)
+      if (esErrorPrisma(error, "P2003")) {
         throw new ConflictException(
           "No se puede eliminar: el usuario tiene turnos o pedidos asociados",
         );
@@ -242,9 +267,19 @@ export class UsuariosService {
     }
   }
 
+  private mensajeDependencias(turnos: number, pedidos: number): string {
+    const partes: string[] = [];
+    if (turnos > 0) partes.push(`${turnos} turno${turnos === 1 ? "" : "s"}`);
+    if (pedidos > 0) partes.push(`${pedidos} pedido${pedidos === 1 ? "" : "s"}`);
+    return (
+      `No se puede eliminar: el usuario tiene ${partes.join(" y ")} asociado${turnos + pedidos === 1 ? "" : "s"}. ` +
+      "Se conserva para no perder el historial."
+    );
+  }
+
   // P2002 = violación de constraint unique (teléfono o email)
   private lanzarSiEsDuplicado(error: unknown) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+    if (esErrorPrisma(error, "P2002")) {
       throw new ConflictException("El teléfono o el email ya están registrados");
     }
   }

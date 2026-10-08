@@ -21,6 +21,7 @@ import { ClientesAdminPage } from "../pages/admin/ClientesAdminPage";
 import { AdminLayout } from "../components/layout/AdminLayout";
 import { UsuariosAdminPage } from "../pages/admin/UsuariosAdminPage";
 import { ServiciosPage } from "../pages/public/ServiciosPage";
+import { PerfilPage } from "../pages/public/PerfilPage";
 
 export function AppRouter() {
   return (
@@ -31,6 +32,15 @@ export function AppRouter() {
         <Route path="/servicios" element={<ServiciosPage />} />
         <Route path="/portafolio" element={<PortafolioPage />} />
         <Route path="/turnos" element={<TurnosPage />} />
+        {/* Cualquier usuario logueado (cliente o admin) */}
+        <Route
+          path="/perfil"
+          element={
+            <ProtectedRoute>
+              <PerfilPage />
+            </ProtectedRoute>
+          }
+        />
       </Route>
 
       {/* LOGIN */}
