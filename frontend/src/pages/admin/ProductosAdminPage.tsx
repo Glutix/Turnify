@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CategoriasProductoTab } from "../../components/productos/CategoriasProductoTab";
+import { ProductosTab } from "../../components/productos/ProductosTab";
 
 type Tab = "productos" | "categorias";
 
@@ -33,11 +34,7 @@ export function ProductosAdminPage() {
         </button>
       </div>
 
-      {tab === "productos" && (
-        <p className="py-10 text-center text-sm text-espresso/50">
-          La gestión de productos estará disponible próximamente.
-        </p>
-      )}
+      {tab === "productos" && <ProductosTab />}
 
       {tab === "categorias" && <CategoriasProductoTab />}
     </div>

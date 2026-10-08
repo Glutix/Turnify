@@ -5,6 +5,7 @@ import {
   actualizarCategoriaProducto,
   eliminarCategoriaProducto,
 } from "../api/categoriasProducto";
+import { PRODUCTOS_QUERY_KEY } from "./useProductos";
 import type {
   CrearCategoriaProductoPayload,
   ActualizarCategoriaProductoPayload,
@@ -35,7 +36,13 @@ export function useActualizarCategoriaProducto() {
       id: number;
       payload: ActualizarCategoriaProductoPayload;
     }) => actualizarCategoriaProducto(id, payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+    // Cada producto trae el nombre de su categoría anidado: si se renombra,
+    // la lista de productos en caché quedaría con el nombre viejo.
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: PRODUCTOS_QUERY_KEY }),
+      ]),
   });
 }
 
