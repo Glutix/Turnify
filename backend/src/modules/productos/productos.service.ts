@@ -25,6 +25,7 @@ export class ProductosService {
     private readonly categoriasProductoService: CategoriasProductoService,
   ) {}
 
+  //! Administración (solo admin)
   async findAll() {
     return this.prisma.producto.findMany({
       include: INCLUIR_RELACIONES,
@@ -87,5 +88,33 @@ export class ProductosService {
       data: { stock: dto.stock },
       include: INCLUIR_RELACIONES,
     });
+  }
+
+  //! Catálogo público (sin autenticación): solo productos activos
+  async findAllCatalogo() {
+    return this.prisma.producto.findMany({
+      where: { activo: true },
+      include: INCLUIR_RELACIONES,
+      omit: { activo: true },
+      orderBy: { nombre: "asc" },
+    });
+  }
+
+  async findOneCatalogo(id: number) {
+    if (id > ID_MAXIMO) {
+      throw new NotFoundException(`Producto con id ${id} no encontrado`);
+    }
+
+    const producto = await this.prisma.producto.findUnique({
+      where: { id, activo: true },
+      include: INCLUIR_RELACIONES,
+      omit: { activo: true },
+    });
+
+    if (!producto) {
+      throw new NotFoundException(`Producto con id ${id} no encontrado`);
+    }
+
+    return producto;
   }
 }
