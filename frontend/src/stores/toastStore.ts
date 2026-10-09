@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
-export type TipoToast = "creacion" | "actualizacion" | "eliminacion";
+export type TipoToast =
+  "creacion" | "actualizacion" | "eliminacion" | "activacion" | "desactivacion";
 
 export interface ToastItem {
   id: number;

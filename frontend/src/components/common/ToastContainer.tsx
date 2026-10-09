@@ -20,6 +20,14 @@ const ESTILOS: Record<TipoToast, { tarjeta: string; barra: string }> = {
     tarjeta: "border-red-200 bg-red-50 text-red-900",
     barra: "bg-red-500",
   },
+  activacion: {
+    tarjeta: "border-emerald-200 bg-emerald-50 text-emerald-900",
+    barra: "bg-emerald-500",
+  },
+  desactivacion: {
+    tarjeta: "border-red-200 bg-red-50 text-red-900",
+    barra: "bg-red-500",
+  },
 };
 
 function ToastCard({ toast }: { toast: ToastItem }) {

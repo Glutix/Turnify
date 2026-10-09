@@ -3,10 +3,10 @@ import { Table } from "../common/Table";
 import { Button } from "../common/Button";
 import { Modal } from "../common/Modal";
 import { ProductoForm } from "./ProductoForm";
+import { AjustarStockForm } from "./AjustarStockForm";
+import { CambiarEstadoProductoDialog } from "./CambiarEstadoProductoDialog";
 import { extraerMensajeError } from "../../utils/extraerMensajeError";
 import { useToastStore } from "../../stores/toastStore";
-
-import { AjustarStockForm } from "./AjustarStockForm";
 import {
   useProductos,
   useCrearProducto,
@@ -41,6 +41,8 @@ export function ProductosTab() {
   const [errorFormulario, setErrorFormulario] = useState("");
   const [productoStock, setProductoStock] = useState<Producto | null>(null);
   const [errorStock, setErrorStock] = useState("");
+  const [productoEstado, setProductoEstado] = useState<Producto | null>(null);
+  const [errorEstado, setErrorEstado] = useState("");
 
   const {
     data: productos = [],
@@ -143,6 +145,38 @@ export function ProductosTab() {
     );
   }
 
+  function abrirCambiarEstado(producto: Producto) {
+    setErrorEstado("");
+    setProductoEstado(producto);
+  }
+
+  function handleConfirmarCambioEstado() {
+    if (!productoEstado) return;
+    const { id, nombre } = productoEstado;
+    const activar = !productoEstado.activo;
+
+    actualizarProducto.mutate(
+      { id, payload: { activo: activar } },
+      {
+        onSuccess: () => {
+          setProductoEstado(null);
+          mostrarToast(
+            activar ? "activacion" : "desactivacion",
+            `El producto "${nombre}" fue ${activar ? "activado" : "desactivado"}`,
+          );
+        },
+        onError: (error) => {
+          setErrorEstado(
+            extraerMensajeError(
+              error,
+              `No se pudo ${activar ? "activar" : "desactivar"} el producto`,
+            ),
+          );
+        },
+      },
+    );
+  }
+
   return (
     <>
       <div className="flex flex-col gap-4">
@@ -172,9 +206,9 @@ export function ProductosTab() {
               onChange={(e) => setFiltroEstado(e.target.value as FiltroEstado)}
               className={CLASE_CONTROL}
             >
-              <option value="todos">Todos</option>
               <option value="activos">Activos</option>
               <option value="inactivos">Inactivos</option>
+              <option value="todos">Todos</option>
             </select>
             <label className="flex items-center gap-2 text-sm text-espresso/70">
               <input
@@ -239,9 +273,14 @@ export function ProductosTab() {
                     >
                       Editar
                     </Button>
-
                     <Button variant="link" onClick={() => abrirAjustarStock(p)}>
                       Ajustar stock
+                    </Button>
+                    <Button
+                      variant="link"
+                      onClick={() => abrirCambiarEstado(p)}
+                    >
+                      {p.activo ? "Desactivar" : "Activar"}
                     </Button>
                   </div>
                 ),
@@ -281,6 +320,14 @@ export function ProductosTab() {
           />
         )}
       </Modal>
+
+      <CambiarEstadoProductoDialog
+        producto={productoEstado}
+        onConfirm={handleConfirmarCambioEstado}
+        onCancel={() => setProductoEstado(null)}
+        isConfirming={actualizarProducto.isPending}
+        errorMessage={errorEstado}
+      />
     </>
   );
 }
