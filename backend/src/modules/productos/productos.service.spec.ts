@@ -189,4 +189,47 @@ describe("ProductosService", () => {
       );
     });
   });
+
+  //! Catálogo público (sin autenticación): solo productos activos
+  describe("findAllCatalogo", () => {
+    it("pide solo productos activos, sin el campo activo y ordenados por nombre", async () => {
+      prismaMock.producto.findMany.mockResolvedValue([producto]);
+
+      await service.findAllCatalogo();
+
+      expect(prismaMock.producto.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { activo: true },
+          omit: { activo: true },
+          orderBy: { nombre: "asc" },
+        }),
+      );
+    });
+  });
+
+  describe("findOneCatalogo", () => {
+    it("lanza NotFoundException sin consultar la base si el id supera el máximo", async () => {
+      await expect(service.findOneCatalogo(3000000000)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(prismaMock.producto.findUnique).not.toHaveBeenCalled();
+    });
+
+    it("busca solo entre los activos y lanza NotFoundException si no aparece", async () => {
+      prismaMock.producto.findUnique.mockResolvedValue(null);
+
+      await expect(service.findOneCatalogo(1)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(prismaMock.producto.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 1, activo: true } }),
+      );
+    });
+
+    it("devuelve el producto si está activo", async () => {
+      prismaMock.producto.findUnique.mockResolvedValue(producto);
+
+      await expect(service.findOneCatalogo(1)).resolves.toEqual(producto);
+    });
+  });
 });
