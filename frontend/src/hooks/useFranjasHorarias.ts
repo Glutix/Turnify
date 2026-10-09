@@ -9,6 +9,7 @@ import type {
   CrearFranjaHorariaPayload,
   ActualizarFranjaHorariaPayload,
 } from "../types/horarios";
+import { QUERY_KEY_TURNOS } from "./useTurnos";
 
 const QUERY_KEY = ["franjas-horarias"];
 
@@ -20,7 +21,13 @@ export function useCrearFranjaHoraria() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: CrearFranjaHorariaPayload) => crearFranjaHoraria(payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+    // También refresca los datos de turnos (días habilitados, disponibilidad):
+    // un horario o feriado nuevo cambia lo que se puede reservar.
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: QUERY_KEY_TURNOS }),
+      ]),
   });
 }
 
@@ -29,7 +36,13 @@ export function useActualizarFranjaHoraria() {
   return useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: ActualizarFranjaHorariaPayload }) =>
       actualizarFranjaHoraria(id, payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+    // También refresca los datos de turnos (días habilitados, disponibilidad):
+    // un horario o feriado nuevo cambia lo que se puede reservar.
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: QUERY_KEY_TURNOS }),
+      ]),
   });
 }
 
@@ -37,6 +50,12 @@ export function useToggleEstadoFranjaHoraria() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => toggleEstadoFranjaHoraria(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+    // También refresca los datos de turnos (días habilitados, disponibilidad):
+    // un horario o feriado nuevo cambia lo que se puede reservar.
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: QUERY_KEY_TURNOS }),
+      ]),
   });
 }

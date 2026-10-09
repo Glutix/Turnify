@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
-export type TipoToast = "creacion" | "actualizacion" | "eliminacion";
+// "error" se agregó para avisar fallos (antes solo había tipos de éxito).
+export type TipoToast = "creacion" | "actualizacion" | "eliminacion" | "error";
 
 export interface ToastItem {
   id: number;

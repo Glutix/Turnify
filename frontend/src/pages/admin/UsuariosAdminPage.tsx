@@ -5,7 +5,7 @@ import { Button } from "../../components/common/Button";
 import { Input } from "../../components/common/Input";
 import { Select } from "../../components/common/Select";
 import { Modal } from "../../components/common/Modal";
-import { Toast } from "../../components/common/Toast";
+import { useToastStore } from "../../stores/toastStore";
 import { ConfirmDialog } from "../../components/servicios/ConfirmDialog";
 import { UsuarioForm } from "../../components/usuarios/UsuarioForm";
 import {
@@ -23,8 +23,6 @@ import {
   type Usuario,
 } from "../../types/usuario";
 import { extraerMensajeError } from "../../utils/extraerMensajeError";
-
-type ToastState = { message: string; type: "success" | "error" } | null;
 
 interface FormFiltros {
   busqueda: string;
@@ -48,7 +46,7 @@ export function UsuariosAdminPage() {
   const [form, setForm] = useState<FormFiltros>(FILTROS_VACIOS);
   const [aplicados, setAplicados] = useState<FormFiltros>(FILTROS_VACIOS);
 
-  const [toast, setToast] = useState<ToastState>(null);
+  const mostrarToast = useToastStore((s) => s.mostrarToast);
   const [modalCrearAbierto, setModalCrearAbierto] = useState(false);
   const [usuarioAEditar, setUsuarioAEditar] = useState<Usuario | null>(null);
   const [errorFormulario, setErrorFormulario] = useState("");
@@ -88,7 +86,7 @@ export function UsuariosAdminPage() {
     crearUsuario.mutate(payload, {
       onSuccess: () => {
         setModalCrearAbierto(false);
-        setToast({ message: "Usuario creado correctamente", type: "success" });
+        mostrarToast("creacion", "Usuario creado correctamente");
       },
       onError: (error) =>
         setErrorFormulario(extraerMensajeError(error, "No se pudo crear el usuario")),
@@ -105,7 +103,7 @@ export function UsuariosAdminPage() {
       {
         onSuccess: () => {
           setUsuarioAEditar(null);
-          setToast({ message: "Usuario actualizado correctamente", type: "success" });
+          mostrarToast("actualizacion", "Usuario actualizado correctamente");
         },
         onError: (error) =>
           setErrorFormulario(extraerMensajeError(error, "No se pudo actualizar el usuario")),
@@ -123,7 +121,7 @@ export function UsuariosAdminPage() {
     eliminarUsuario.mutate(usuarioAEliminar.id, {
       onSuccess: () => {
         setUsuarioAEliminar(null);
-        setToast({ message: "Usuario eliminado", type: "success" });
+        mostrarToast("eliminacion", "Usuario eliminado");
       },
       onError: (error) =>
         setErrorEliminar(extraerMensajeError(error, "No se pudo eliminar el usuario")),
@@ -244,8 +242,6 @@ export function UsuariosAdminPage() {
         isConfirming={eliminarUsuario.isPending}
         errorMessage={errorEliminar}
       />
-
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   );
 }

@@ -9,6 +9,7 @@ import type {
   CrearExcepcionHorarioPayload,
   ActualizarExcepcionHorarioPayload,
 } from "../types/horarios";
+import { QUERY_KEY_TURNOS } from "./useTurnos";
 
 const QUERY_KEY = ["excepciones-horario"];
 
@@ -20,7 +21,13 @@ export function useCrearExcepcionHorario() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: CrearExcepcionHorarioPayload) => crearExcepcionHorario(payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+    // También refresca los datos de turnos (días habilitados, disponibilidad):
+    // un horario o feriado nuevo cambia lo que se puede reservar.
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: QUERY_KEY_TURNOS }),
+      ]),
   });
 }
 
@@ -34,7 +41,13 @@ export function useActualizarExcepcionHorario() {
       id: number;
       payload: ActualizarExcepcionHorarioPayload;
     }) => actualizarExcepcionHorario(id, payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+    // También refresca los datos de turnos (días habilitados, disponibilidad):
+    // un horario o feriado nuevo cambia lo que se puede reservar.
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: QUERY_KEY_TURNOS }),
+      ]),
   });
 }
 
@@ -42,6 +55,12 @@ export function useEliminarExcepcionHorario() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => eliminarExcepcionHorario(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+    // También refresca los datos de turnos (días habilitados, disponibilidad):
+    // un horario o feriado nuevo cambia lo que se puede reservar.
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: QUERY_KEY_TURNOS }),
+      ]),
   });
 }

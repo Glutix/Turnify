@@ -4,7 +4,7 @@ import { isAxiosError } from "axios";
 import { Table } from "../../components/common/Table";
 import { Button } from "../../components/common/Button";
 import { Modal } from "../../components/common/Modal";
-import { Toast } from "../../components/common/Toast";
+import { useToastStore } from "../../stores/toastStore";
 import { ConfirmDialog } from "../../components/servicios/ConfirmDialog";
 import { FranjaHorariaForm } from "../../components/horarios/FranjaHorariaForm";
 import { ExcepcionHorarioForm } from "../../components/horarios/ExcepcionHorarioForm";
@@ -24,11 +24,9 @@ import { ETIQUETA_DIA, horaDesdeISO } from "../../types/horarios";
 import type { FranjaHoraria, ExcepcionHorario, DiaSemana } from "../../types/horarios";
 
 type Tab = "franjas" | "excepciones";
-type ToastState = { message: string; type: "success" | "error" } | null;
-
 export function HorariosAdminPage() {
   const [tab, setTab] = useState<Tab>("franjas");
-  const [toast, setToast] = useState<ToastState>(null);
+  const mostrarToast = useToastStore((s) => s.mostrarToast);
   const [filtroDia, setFiltroDia] = useState<DiaSemana | "">("");
 
   // Modal de franja
@@ -76,13 +74,10 @@ export function HorariosAdminPage() {
         {
           onSuccess: () => {
             setModalFranjaAbierto(false);
-            setToast({ message: "Franja horaria actualizada correctamente", type: "success" });
+            mostrarToast("actualizacion", "Franja horaria actualizada correctamente");
           },
           onError: (error) => {
-            setToast({
-              message: extraerMensajeConflicto(error, "No se pudo actualizar la franja horaria"),
-              type: "error",
-            });
+            mostrarToast("error", extraerMensajeConflicto(error, "No se pudo actualizar la franja horaria"));
           },
         },
       );
@@ -90,13 +85,10 @@ export function HorariosAdminPage() {
       crearFranja.mutate(payload, {
         onSuccess: () => {
           setModalFranjaAbierto(false);
-          setToast({ message: "Franja horaria creada correctamente", type: "success" });
+          mostrarToast("creacion", "Franja horaria creada correctamente");
         },
         onError: (error) => {
-          setToast({
-            message: extraerMensajeConflicto(error, "No se pudo crear la franja horaria"),
-            type: "error",
-          });
+          mostrarToast("error", extraerMensajeConflicto(error, "No se pudo crear la franja horaria"));
         },
       });
     }
@@ -105,16 +97,10 @@ export function HorariosAdminPage() {
   function handleToggleEstadoFranja(franja: FranjaHoraria) {
     toggleEstadoFranja.mutate(franja.id, {
       onSuccess: () => {
-        setToast({
-          message: franja.activo ? "Franja desactivada" : "Franja activada",
-          type: "success",
-        });
+        mostrarToast("actualizacion", franja.activo ? "Franja desactivada" : "Franja activada");
       },
       onError: (error) => {
-        setToast({
-          message: extraerMensajeConflicto(error, "No se pudo cambiar el estado de la franja"),
-          type: "error",
-        });
+        mostrarToast("error", extraerMensajeConflicto(error, "No se pudo cambiar el estado de la franja"));
       },
     });
   }
@@ -137,13 +123,10 @@ export function HorariosAdminPage() {
         {
           onSuccess: () => {
             setModalExcepcionAbierto(false);
-            setToast({ message: "Excepción actualizada correctamente", type: "success" });
+            mostrarToast("actualizacion", "Excepción actualizada correctamente");
           },
           onError: (error) => {
-            setToast({
-              message: extraerMensajeConflicto(error, "No se pudo actualizar la excepción"),
-              type: "error",
-            });
+            mostrarToast("error", extraerMensajeConflicto(error, "No se pudo actualizar la excepción"));
           },
         },
       );
@@ -151,13 +134,10 @@ export function HorariosAdminPage() {
       crearExcepcion.mutate(payload, {
         onSuccess: () => {
           setModalExcepcionAbierto(false);
-          setToast({ message: "Excepción creada correctamente", type: "success" });
+          mostrarToast("creacion", "Excepción creada correctamente");
         },
         onError: (error) => {
-          setToast({
-            message: extraerMensajeConflicto(error, "No se pudo crear la excepción"),
-            type: "error",
-          });
+          mostrarToast("error", extraerMensajeConflicto(error, "No se pudo crear la excepción"));
         },
       });
     }
@@ -174,7 +154,7 @@ export function HorariosAdminPage() {
     eliminarExcepcion.mutate(excepcionAEliminar.id, {
       onSuccess: () => {
         setExcepcionAEliminar(null);
-        setToast({ message: "Excepción eliminada correctamente", type: "success" });
+        mostrarToast("eliminacion", "Excepción eliminada correctamente");
       },
       onError: (error) => {
         // El backend responde 409 con un mensaje claro cuando hay turnos
@@ -352,8 +332,6 @@ export function HorariosAdminPage() {
         isConfirming={eliminarExcepcion.isPending}
         errorMessage={errorEliminarExcepcion}
       />
-
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   );
 }

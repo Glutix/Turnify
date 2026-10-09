@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { Button } from "../../components/common/Button";
 import { Input } from "../../components/common/Input";
-import { Toast } from "../../components/common/Toast";
+import { useToastStore } from "../../stores/toastStore";
 import {
   useActualizarMiPerfil,
   useEstablecerPassword,
@@ -11,8 +11,6 @@ import {
 } from "../../hooks/useUsuarios";
 import { extraerMensajeError } from "../../utils/extraerMensajeError";
 import type { Usuario } from "../../types/usuario";
-
-type ToastState = { message: string; type: "success" | "error" } | null;
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -30,7 +28,7 @@ function PerfilForm({ usuario }: { usuario: Usuario }) {
   const [direccion, setDireccion] = useState(usuario.direccion ?? "");
   const [errores, setErrores] = useState<Errores>({});
   const [errorServidor, setErrorServidor] = useState("");
-  const [toast, setToast] = useState<ToastState>(null);
+  const mostrarToast = useToastStore((s) => s.mostrarToast);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -57,12 +55,7 @@ function PerfilForm({ usuario }: { usuario: Usuario }) {
       },
       {
         onSuccess: (perfil) =>
-          setToast({
-            message: perfil.perfil_completo
-              ? "Perfil actualizado. ¡Ya está completo!"
-              : "Datos guardados correctamente",
-            type: "success",
-          }),
+          mostrarToast("actualizacion", perfil.perfil_completo ? "Perfil actualizado. ¡Ya está completo!" : "Datos guardados correctamente"),
         // 409 de email duplicado → se muestra inline (CU-12: "pedir uno distinto")
         onError: (error) =>
           setErrorServidor(extraerMensajeError(error, "No se pudieron guardar los cambios")),
@@ -123,12 +116,6 @@ function PerfilForm({ usuario }: { usuario: Usuario }) {
           </Button>
         </div>
       </form>
-
-      {toast && (
-        <div className="fixed bottom-6 right-6 z-50">
-          <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
-        </div>
-      )}
     </>
   );
 }
@@ -143,7 +130,7 @@ function PasswordForm({ tienePassword }: { tienePassword: boolean }) {
   const [nueva, setNueva] = useState("");
   const [repetir, setRepetir] = useState("");
   const [error, setError] = useState("");
-  const [toast, setToast] = useState<ToastState>(null);
+  const mostrarToast = useToastStore((s) => s.mostrarToast);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -162,7 +149,7 @@ function PasswordForm({ tienePassword }: { tienePassword: boolean }) {
           setActual("");
           setNueva("");
           setRepetir("");
-          setToast({ message: "Contraseña guardada correctamente", type: "success" });
+          mostrarToast("actualizacion", "Contraseña guardada correctamente");
         },
         onError: (err) => setError(extraerMensajeError(err, "No se pudo guardar la contraseña")),
       },
@@ -209,12 +196,6 @@ function PasswordForm({ tienePassword }: { tienePassword: boolean }) {
           </Button>
         </div>
       </form>
-
-      {toast && (
-        <div className="fixed bottom-6 right-6 z-50">
-          <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
-        </div>
-      )}
     </>
   );
 }

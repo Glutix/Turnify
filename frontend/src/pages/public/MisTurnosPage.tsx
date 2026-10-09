@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../../components/common/Button";
 import { Modal } from "../../components/common/Modal";
-import { Toast } from "../../components/common/Toast";
+import { useToastStore } from "../../stores/toastStore";
 import { ConfirmDialog } from "../../components/servicios/ConfirmDialog";
 import { ReprogramarTurnoForm } from "../../components/turnos/ReprogramarTurnoForm";
 import {
@@ -25,8 +25,6 @@ import { formatearDuracion, precioANumero } from "../../utils/servicio";
 const HORAS_MINIMAS = 12;
 const MS_HORA = 60 * 60 * 1000;
 
-type ToastState = { message: string; type: "success" | "error" } | null;
-
 function resumen(turno: Turno) {
   const servicios = turno.turno_servicios ?? [];
   return {
@@ -42,7 +40,7 @@ export function MisTurnosPage() {
   const cancelarTurno = useCancelarMiTurno();
   const reprogramarTurno = useReprogramarMiTurno();
 
-  const [toast, setToast] = useState<ToastState>(null);
+  const mostrarToast = useToastStore((s) => s.mostrarToast);
   const [turnoACancelar, setTurnoACancelar] = useState<Turno | null>(null);
   const [errorCancelar, setErrorCancelar] = useState("");
   const [turnoAReprogramar, setTurnoAReprogramar] = useState<Turno | null>(null);
@@ -61,7 +59,7 @@ export function MisTurnosPage() {
     cancelarTurno.mutate(turnoACancelar.id, {
       onSuccess: () => {
         setTurnoACancelar(null);
-        setToast({ message: "Turno cancelado", type: "success" });
+        mostrarToast("eliminacion", "Turno cancelado");
       },
       onError: (error) => setErrorCancelar(extraerMensajeError(error, "No se pudo cancelar el turno")),
     });
@@ -75,7 +73,7 @@ export function MisTurnosPage() {
       {
         onSuccess: () => {
           setTurnoAReprogramar(null);
-          setToast({ message: "Turno reprogramado correctamente", type: "success" });
+          mostrarToast("actualizacion", "Turno reprogramado correctamente");
         },
         onError: (error) =>
           setErrorReprogramar(extraerMensajeError(error, "No se pudo reprogramar el turno")),
@@ -213,12 +211,6 @@ export function MisTurnosPage() {
         isConfirming={cancelarTurno.isPending}
         errorMessage={errorCancelar}
       />
-
-      {toast && (
-        <div className="fixed bottom-6 right-6 z-50">
-          <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
-        </div>
-      )}
     </div>
   );
 }

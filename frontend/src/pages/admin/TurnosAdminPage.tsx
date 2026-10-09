@@ -4,7 +4,7 @@ import { Table } from "../../components/common/Table";
 import { Button } from "../../components/common/Button";
 import { Input } from "../../components/common/Input";
 import { Select } from "../../components/common/Select";
-import { Toast } from "../../components/common/Toast";
+import { useToastStore } from "../../stores/toastStore";
 import { EstadoBadge } from "../../components/turnos/EstadoBadge";
 import {
   AccionesTurnoAdmin,
@@ -20,8 +20,6 @@ import {
   type Turno,
 } from "../../types/turno";
 import { claseFilaTurno, nombreCliente, nombreServicios } from "../../utils/turno";
-
-type ToastState = { message: string; type: "success" | "error" } | null;
 
 interface FormFiltros {
   busqueda: string;
@@ -48,8 +46,8 @@ export function TurnosAdminPage() {
   const [aplicados, setAplicados] = useState<FormFiltros>(FILTROS_VACIOS);
   const [pagina, setPagina] = useState(1);
 
-  const [toast, setToast] = useState<ToastState>(null);
-  const gestion = useGestionTurnoAdmin((message, type) => setToast({ message, type }));
+  const mostrarToast = useToastStore((s) => s.mostrarToast);
+  const gestion = useGestionTurnoAdmin();
 
   const filtros: FiltrosTurnosAdmin = {
     busqueda: aplicados.busqueda.trim() || undefined,
@@ -69,7 +67,7 @@ export function TurnosAdminPage() {
   function handleBuscar(e: FormEvent) {
     e.preventDefault();
     if (form.desde && form.hasta && form.desde > form.hasta) {
-      setToast({ message: "La fecha \"desde\" no puede ser posterior a \"hasta\"", type: "error" });
+      mostrarToast("error", "La fecha \"desde\" no puede ser posterior a \"hasta\"");
       return;
     }
     setAplicados(form);
@@ -172,8 +170,6 @@ export function TurnosAdminPage() {
       )}
 
       <ModalesGestionTurno gestion={gestion} />
-
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   );
 }

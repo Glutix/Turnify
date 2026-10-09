@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Table } from "../../components/common/Table";
 import { Button } from "../../components/common/Button";
 import { Modal } from "../../components/common/Modal";
-import { Toast } from "../../components/common/Toast";
+import { useToastStore } from "../../stores/toastStore";
 import { EstadoBadge } from "../../components/turnos/EstadoBadge";
 import {
   AccionesTurnoAdmin,
@@ -17,13 +17,11 @@ import { formatearFechaHora, type ReservarTurnoAdminPayload, type Turno } from "
 import { hoyISO } from "../../utils/fechas";
 import { claseFilaTurno, nombreCliente, nombreServicios } from "../../utils/turno";
 
-type ToastState = { message: string; type: "success" | "error" } | null;
-
 export function AgendaPage() {
   const [fecha, setFecha] = useState(hoyISO());
-  const [toast, setToast] = useState<ToastState>(null);
+  const mostrarToast = useToastStore((s) => s.mostrarToast);
 
-  const gestion = useGestionTurnoAdmin((message, type) => setToast({ message, type }));
+  const gestion = useGestionTurnoAdmin();
 
   const [nuevoTurnoAbierto, setNuevoTurnoAbierto] = useState(false);
   const [errorNuevoTurno, setErrorNuevoTurno] = useState("");
@@ -38,7 +36,7 @@ export function AgendaPage() {
         setNuevoTurnoAbierto(false);
         // La agenda salta al día del turno nuevo para que se vea enseguida.
         setFecha(turno.fecha_hora_inicio.slice(0, 10));
-        setToast({ message: "Turno creado correctamente", type: "success" });
+        mostrarToast("creacion", "Turno creado correctamente");
       },
       // 409 (horario ocupado) y demás errores del backend se muestran en el form.
       onError: (error) =>
@@ -113,8 +111,6 @@ export function AgendaPage() {
       </Modal>
 
       <ModalesGestionTurno gestion={gestion} />
-
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   );
 }

@@ -126,6 +126,9 @@ export class TurnosService {
   // Días con atención entre dos fechas (inclusive): excluye pasados, días sin
   // franjas activas (p. ej. sábados y domingos) y feriados/cierres
   // (bloqueo_total). Lo usa el frontend para ofrecer solo fechas válidas.
+  // Si la fecha es HOY, además exige que quede alguna franja que termine después
+  // de la hora actual del salón (si ya pasó la última franja, "hoy" no se ofrece).
+  // No conoce los servicios elegidos, así que no verifica que entre uno puntual.
   async diasHabilitados(desdeStr: string, hastaStr: string): Promise<string[]> {
     const formato = /^\d{4}-\d{2}-\d{2}$/;
     if (!formato.test(desdeStr ?? "") || !formato.test(hastaStr ?? "")) {
@@ -143,6 +146,7 @@ export class TurnosService {
       );
     }
 
+    const ahoraMin = ahora.getUTCHours() * 60 + ahora.getUTCMinutes();
     const fechas: Date[] = [];
     for (let t = desde; t <= hasta; t += DIA_MS) fechas.push(new Date(t));
 
@@ -151,7 +155,11 @@ export class TurnosService {
         const excepciones = await this.horariosService.obtenerExcepcionesParaFecha(fecha);
         if (excepciones.some((e) => e.tipo === "bloqueo_total")) return null;
         const franjas = await this.horariosService.obtenerFranjasActivasPorFecha(fecha);
-        return franjas.length > 0 ? fecha.toISOString().slice(0, 10) : null;
+        const esHoy = fecha.getTime() === hoy;
+        const franjasConTiempo = esHoy
+          ? franjas.filter((f) => minutosDesdeMedianoche(f.hora_fin) > ahoraMin)
+          : franjas;
+        return franjasConTiempo.length > 0 ? fecha.toISOString().slice(0, 10) : null;
       }),
     );
     return habilitados.filter((d): d is string => d !== null);

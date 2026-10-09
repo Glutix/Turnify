@@ -26,8 +26,9 @@ import type {
 
 const QUERY_KEY_AGENDA = ["turnos", "agenda"];
 // Raíz común: las mutations invalidan TODO lo de turnos (agenda, listado admin,
-// disponibilidad), así las dos páginas admin quedan siempre sincronizadas.
-const QUERY_KEY_TURNOS = ["turnos"];
+// disponibilidad, días habilitados), así las pantallas quedan siempre sincronizadas.
+// Exportada: también la invalidan los hooks de horarios (franjas y excepciones).
+export const QUERY_KEY_TURNOS = ["turnos"];
 
 // --- Público / invitado (CU-06 / CU-07) ---
 
@@ -61,14 +62,16 @@ export function useDiasHabilitados(desde: string, hasta: string) {
   return useQuery({
     queryKey: [...QUERY_KEY_TURNOS, "dias-habilitados", desde, hasta],
     queryFn: () => obtenerDiasHabilitados(desde, hasta),
-    staleTime: 5 * 60 * 1000,
+    // Corto: con el paso de la hora (p. ej. pasadas las 20:00) "hoy" deja de
+    // estar habilitado sin que haya ninguna mutation que invalide la caché.
+    staleTime: 30 * 1000,
   });
 }
 
 // Ventana de días que se ofrece al reservar o reprogramar (el backend acepta
 // hasta 62). Único lugar donde se define: lo usan TurnosPage, NuevoTurnoForm y
 // ReprogramarTurnoForm.
-const DIAS_VISIBLES_RESERVA = 45;
+const DIAS_VISIBLES_RESERVA = 60;
 
 export function useDiasReservables() {
   const hoy = hoyISO();

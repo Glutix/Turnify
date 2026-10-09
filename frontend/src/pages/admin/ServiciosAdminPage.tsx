@@ -4,7 +4,7 @@ import { isAxiosError } from "axios";
 import { Table } from "../../components/common/Table";
 import { Button } from "../../components/common/Button";
 import { Modal } from "../../components/common/Modal";
-import { Toast } from "../../components/common/Toast";
+import { useToastStore } from "../../stores/toastStore";
 import { ServicioForm } from "../../components/servicios/ServicioForm";
 import { CategoriaForm } from "../../components/servicios/CategoriaForm";
 import { ConfirmDialog } from "../../components/servicios/ConfirmDialog";
@@ -24,11 +24,9 @@ import {
 import type { Servicio, CategoriaServicio } from "../../types/servicio";
 
 type Tab = "servicios" | "categorias";
-type ToastState = { message: string; type: "success" | "error" } | null;
-
 export function ServiciosAdminPage() {
   const [tab, setTab] = useState<Tab>("servicios");
-  const [toast, setToast] = useState<ToastState>(null);
+  const mostrarToast = useToastStore((s) => s.mostrarToast);
   const [mostrarInactivos, setMostrarInactivos] = useState(true);
   const [busqueda, setBusqueda] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState<string>("");
@@ -80,10 +78,10 @@ export function ServiciosAdminPage() {
         {
           onSuccess: () => {
             setModalServicioAbierto(false);
-            setToast({ message: "Servicio actualizado correctamente", type: "success" });
+            mostrarToast("actualizacion", "Servicio actualizado correctamente");
           },
           onError: () => {
-            setToast({ message: "No se pudo actualizar el servicio", type: "error" });
+            mostrarToast("error", "No se pudo actualizar el servicio");
           },
         },
       );
@@ -91,10 +89,10 @@ export function ServiciosAdminPage() {
       crearServicio.mutate(payload, {
         onSuccess: () => {
           setModalServicioAbierto(false);
-          setToast({ message: "Servicio creado correctamente", type: "success" });
+          mostrarToast("creacion", "Servicio creado correctamente");
         },
         onError: () => {
-          setToast({ message: "No se pudo crear el servicio", type: "error" });
+          mostrarToast("error", "No se pudo crear el servicio");
         },
       });
     }
@@ -103,13 +101,10 @@ export function ServiciosAdminPage() {
   function handleToggleEstado(servicio: Servicio) {
     toggleEstadoServicio.mutate(servicio.id, {
       onSuccess: () => {
-        setToast({
-          message: servicio.activo ? "Servicio desactivado" : "Servicio activado",
-          type: "success",
-        });
+        mostrarToast("actualizacion", servicio.activo ? "Servicio desactivado" : "Servicio activado");
       },
       onError: () => {
-        setToast({ message: "No se pudo cambiar el estado del servicio", type: "error" });
+        mostrarToast("error", "No se pudo cambiar el estado del servicio");
       },
     });
   }
@@ -132,10 +127,10 @@ export function ServiciosAdminPage() {
         {
           onSuccess: () => {
             setModalCategoriaAbierto(false);
-            setToast({ message: "Categoría actualizada correctamente", type: "success" });
+            mostrarToast("actualizacion", "Categoría actualizada correctamente");
           },
           onError: () => {
-            setToast({ message: "No se pudo actualizar la categoría", type: "error" });
+            mostrarToast("error", "No se pudo actualizar la categoría");
           },
         },
       );
@@ -143,10 +138,10 @@ export function ServiciosAdminPage() {
       crearCategoria.mutate(payload, {
         onSuccess: () => {
           setModalCategoriaAbierto(false);
-          setToast({ message: "Categoría creada correctamente", type: "success" });
+          mostrarToast("creacion", "Categoría creada correctamente");
         },
         onError: () => {
-          setToast({ message: "No se pudo crear la categoría", type: "error" });
+          mostrarToast("error", "No se pudo crear la categoría");
         },
       });
     }
@@ -163,7 +158,7 @@ export function ServiciosAdminPage() {
     eliminarCategoria.mutate(categoriaAEliminar.id, {
       onSuccess: () => {
         setCategoriaAEliminar(null);
-        setToast({ message: "Categoría eliminada correctamente", type: "success" });
+        mostrarToast("eliminacion", "Categoría eliminada correctamente");
       },
       onError: (error) => {
         // El backend responde 409 con un mensaje claro cuando la categoría
@@ -355,8 +350,6 @@ export function ServiciosAdminPage() {
         isConfirming={eliminarCategoria.isPending}
         errorMessage={errorEliminarCategoria}
       />
-
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   );
 }

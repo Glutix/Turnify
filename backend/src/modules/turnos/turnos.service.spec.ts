@@ -317,6 +317,45 @@ describe("TurnosService", () => {
       expect(dias).toEqual(["2099-01-05", "2099-01-06"]);
     });
 
+    describe("día de hoy según la hora del salón", () => {
+      // Hora de pared del salón = UTC + offset; fijamos "ahora" con fake timers.
+      // Con offset -180, las 21:00 del salón son las 00:00Z del día siguiente.
+      const fijarHoraSalon = (iso: string) => {
+        jest.useFakeTimers().setSystemTime(new Date(iso));
+      };
+      const franjasDoble = [
+        { hora_inicio: hora("08:00"), hora_fin: hora("12:00") },
+        { hora_inicio: hora("16:00"), hora_fin: hora("20:00") },
+      ];
+
+      beforeEach(() => {
+        process.env.SALON_UTC_OFFSET_MINUTES = "-180";
+        horariosMock.obtenerExcepcionesParaFecha.mockResolvedValue([]);
+        horariosMock.obtenerFranjasActivasPorFecha.mockResolvedValue(franjasDoble);
+      });
+
+      afterEach(() => {
+        jest.useRealTimers();
+        delete process.env.SALON_UTC_OFFSET_MINUTES;
+      });
+
+      it("incluye hoy si todavía queda una franja pendiente", async () => {
+        fijarHoraSalon("2099-01-05T17:00:00.000Z"); // 14:00 en el salón
+        expect(await service.diasHabilitados("2099-01-05", "2099-01-06")).toEqual([
+          "2099-01-05",
+          "2099-01-06",
+        ]);
+      });
+
+      it("excluye hoy si ya pasaron todas las franjas (21:00) pero mantiene mañana", async () => {
+        fijarHoraSalon("2099-01-06T00:00:00.000Z"); // 21:00 del 05 en el salón
+        expect(await service.diasHabilitados("2099-01-05", "2099-01-07")).toEqual([
+          "2099-01-06",
+          "2099-01-07",
+        ]);
+      });
+    });
+
     it("no devuelve días pasados y rechaza formato inválido o rango enorme", async () => {
       horariosMock.obtenerExcepcionesParaFecha.mockResolvedValue([]);
       horariosMock.obtenerFranjasActivasPorFecha.mockResolvedValue([

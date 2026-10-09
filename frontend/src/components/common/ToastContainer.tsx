@@ -20,6 +20,11 @@ const ESTILOS: Record<TipoToast, { tarjeta: string; barra: string }> = {
     tarjeta: "border-red-200 bg-red-50 text-red-900",
     barra: "bg-red-500",
   },
+  // Ámbar a propósito: el rojo ya significa "eliminación" (acción exitosa).
+  error: {
+    tarjeta: "border-amber-300 bg-amber-50 text-amber-900",
+    barra: "bg-amber-500",
+  },
 };
 
 function ToastCard({ toast }: { toast: ToastItem }) {
