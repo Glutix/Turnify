@@ -3,6 +3,7 @@ import { NotFoundException } from "@nestjs/common";
 import { ProductosService } from "./productos.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CategoriasProductoService } from "../categorias-producto/categorias-producto.service";
+import { CloudinaryService } from "../cloudinary/cloudinary.service";
 
 const prismaMock = {
   producto: {
@@ -36,6 +37,7 @@ describe("ProductosService", () => {
         ProductosService,
         { provide: PrismaService, useValue: prismaMock },
         { provide: CategoriasProductoService, useValue: categoriasMock },
+        { provide: CloudinaryService, useValue: {} },
       ],
     }).compile();
 
