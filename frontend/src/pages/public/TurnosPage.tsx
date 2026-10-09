@@ -4,21 +4,24 @@ import { Link } from "react-router-dom";
 import { isAxiosError } from "axios";
 import { Button } from "../../components/common/Button";
 import { Input } from "../../components/common/Input";
-import { IconPhone, IconUser, IconClock, IconArrowLeft } from "../../components/common/Icons";
+import { IconPhone, IconUser, IconArrowLeft } from "../../components/common/Icons";
 import { CodeStep } from "../../components/auth/CodeStep";
+import { SelectorFecha } from "../../components/turnos/SelectorFecha";
+import { SelectorHorario } from "../../components/turnos/SelectorHorario";
 import { solicitarCodigo } from "../../api/auth";
 import { useServicios } from "../../hooks/useServicios";
 import {
+  useDiasReservables,
   useDisponibilidad,
   useReservarTurno,
   useReservarTurnoAutenticado,
 } from "../../hooks/useTurnos";
 import { useAuthStore } from "../../stores/authStore";
-import { hoyISO } from "../../utils/fechas";
+import { extraerIntentosRestantes, extraerMensajeError } from "../../utils/extraerMensajeError";
 import { MAX_DURACION_TURNO_MINUTOS, MENSAJE_DURACION_MAXIMA } from "../../utils/servicio";
 import { formatearDuracion, formatearPrecio, precioANumero } from "../../utils/servicio";
 import type { Servicio } from "../../types/servicio";
-import type { SlotDisponible, Turno } from "../../types/turno";
+import type { Turno } from "../../types/turno";
 
 type Paso = "servicios" | "horario" | "datos" | "otp" | "exito";
 type EstadoOtp = "idle" | "verificando" | "correcto" | "incorrecto";
@@ -56,7 +59,9 @@ export function TurnosPage() {
   const [serviciosSeleccionados, setServiciosSeleccionados] = useState<number[]>([]);
 
   // Paso 2: fecha y horario
-  const [fecha, setFecha] = useState(hoyISO());
+  // Vacío hasta que se elige un día: solo se ofrecen los días con atención.
+  const [fecha, setFecha] = useState("");
+  const { data: dias = [], isLoading: cargandoDias } = useDiasReservables();
   const [horaSeleccionada, setHoraSeleccionada] = useState<string | null>(null);
   const [mensajeHorario, setMensajeHorario] = useState("");
   const { data: slots = [], isLoading: cargandoSlots } = useDisponibilidad(
@@ -111,18 +116,16 @@ export function TurnosPage() {
             setEstadoOtp("idle");
             setCodigo("");
             setMensajeHorario(
-              error.response.data?.message ?? "Ese horario ya no está disponible, elegí otro.",
+              extraerMensajeError(error, "Ese horario ya no está disponible, elegí otro."),
             );
             setPaso("horario");
             return;
           }
 
-          const data = isAxiosError(error) ? error.response?.data : undefined;
-          const intentos =
-            typeof data?.intentosRestantes === "number" ? data.intentosRestantes : null;
+          const intentos = extraerIntentosRestantes(error) ?? null;
           setIntentosRestantes(intentos);
           setCodigoBloqueado(intentos === 0);
-          setErrorOtp(data?.message ?? "No se pudo validar el código");
+          setErrorOtp(extraerMensajeError(error, "No se pudo validar el código"));
           setEstadoOtp("incorrecto");
           window.setTimeout(() => {
             setEstadoOtp("idle");
@@ -203,8 +206,8 @@ export function TurnosPage() {
     setPaso("horario");
   }
 
-  function elegirSlot(slot: SlotDisponible) {
-    setHoraSeleccionada(slot.hora_inicio);
+  function elegirHora(hora: string) {
+    setHoraSeleccionada(hora);
     setPaso("datos");
   }
 
@@ -232,9 +235,7 @@ export function TurnosPage() {
       setPaso("otp");
     } catch (error) {
       setErrorDatos(
-        isAxiosError(error) && error.response?.data?.message
-          ? error.response.data.message
-          : "No se pudo enviar el código. Probá de nuevo en unos segundos.",
+        extraerMensajeError(error, "No se pudo enviar el código. Probá de nuevo en unos segundos."),
       );
     } finally {
       setEnviandoCodigo(false);
@@ -385,47 +386,28 @@ export function TurnosPage() {
           </button>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-espresso/70">Fecha</label>
-            <input
-              type="date"
-              min={hoyISO()}
-              value={fecha}
-              onChange={(e) => {
-                setFecha(e.target.value);
+            <p className="mb-2 text-sm font-medium text-espresso/70">Fecha</p>
+            <SelectorFecha
+              diasHabilitados={dias}
+              value={fecha || null}
+              isLoading={cargandoDias}
+              onChange={(f) => {
+                setFecha(f);
                 setHoraSeleccionada(null);
                 setMensajeHorario("");
               }}
-              className="w-full rounded-xl border border-espresso/15 bg-superficie px-4 py-2.5 text-sm text-espresso focus:border-rosewood focus:outline-none focus:ring-2 focus:ring-rosewood/20"
             />
           </div>
 
           {mensajeHorario && <p className="text-sm text-rosewood">{mensajeHorario}</p>}
 
-          {cargandoSlots && (
-            <p className="py-6 text-center text-sm text-espresso/50">Buscando horarios...</p>
-          )}
-
-          {!cargandoSlots && slots.length === 0 && (
-            <p className="py-6 text-center text-sm text-espresso/50">
-              No hay horarios disponibles para esta fecha — probá con otro día.
-            </p>
-          )}
-
-          {!cargandoSlots && slots.length > 0 && (
-            <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-              {slots.map((slot) => (
-                <button
-                  key={slot.hora_inicio}
-                  type="button"
-                  onClick={() => elegirSlot(slot)}
-                  className="flex items-center justify-center gap-1.5 rounded-xl border border-espresso/15 py-2.5 text-sm text-espresso transition hover:border-rosewood hover:text-rosewood"
-                >
-                  <IconClock size={14} />
-                  {slot.hora_inicio}
-                </button>
-              ))}
-            </div>
-          )}
+          <SelectorHorario
+            slots={slots}
+            value={horaSeleccionada}
+            isLoading={cargandoSlots}
+            mensajeInactivo={!fecha ? "Elegí un día para ver los horarios." : undefined}
+            onChange={elegirHora}
+          />
         </div>
       )}
 

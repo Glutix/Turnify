@@ -8,20 +8,7 @@ import { useUsuarios } from "../../hooks/useUsuarios";
 import { useHistorialPorUsuario } from "../../hooks/useTurnos";
 import { nombreCompleto, type Usuario } from "../../types/usuario";
 import { ETIQUETA_ESTADO, formatearFechaHora, type Turno } from "../../types/turno";
-import { formatearPrecio, precioANumero } from "../../utils/servicio";
-
-function nombreServicios(turno: Turno): string {
-  if (!turno.turno_servicios || turno.turno_servicios.length === 0) return "—";
-  return turno.turno_servicios.map((ts) => ts.servicio.nombre).join(", ");
-}
-
-function totalTurno(turno: Turno): string {
-  const total = (turno.turno_servicios ?? []).reduce(
-    (acc, ts) => acc + precioANumero(ts.precio_unitario),
-    0,
-  );
-  return formatearPrecio(String(total));
-}
+import { nombreServicios, totalTurno } from "../../utils/turno";
 
 export function ClientesAdminPage() {
   const [busquedaInput, setBusquedaInput] = useState("");

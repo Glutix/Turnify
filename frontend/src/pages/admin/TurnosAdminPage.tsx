@@ -4,14 +4,14 @@ import { Table } from "../../components/common/Table";
 import { Button } from "../../components/common/Button";
 import { Input } from "../../components/common/Input";
 import { Select } from "../../components/common/Select";
-import { Modal } from "../../components/common/Modal";
 import { Toast } from "../../components/common/Toast";
-import { ConfirmDialog } from "../../components/servicios/ConfirmDialog";
+import { EstadoBadge } from "../../components/turnos/EstadoBadge";
 import {
-  useTurnosAdmin,
-  useCancelarTurnoAdmin,
-  useMarcarAtendido,
-} from "../../hooks/useTurnos";
+  AccionesTurnoAdmin,
+  ModalesGestionTurno,
+} from "../../components/turnos/GestionTurnoAdmin";
+import { useTurnosAdmin } from "../../hooks/useTurnos";
+import { useGestionTurnoAdmin } from "../../hooks/useGestionTurnoAdmin";
 import {
   ETIQUETA_ESTADO,
   formatearFechaHora,
@@ -19,8 +19,7 @@ import {
   type FiltrosTurnosAdmin,
   type Turno,
 } from "../../types/turno";
-import { extraerMensajeError } from "../../utils/extraerMensajeError";
-import { formatearDuracion, formatearPrecio, precioANumero } from "../../utils/servicio";
+import { claseFilaTurno, nombreCliente, nombreServicios } from "../../utils/turno";
 
 type ToastState = { message: string; type: "success" | "error" } | null;
 
@@ -42,41 +41,6 @@ const OPCIONES_ESTADO = [
   })),
 ];
 
-const ESTILO_ESTADO: Record<EstadoTurno, string> = {
-  confirmado: "bg-oro/20 text-espresso",
-  atendido: "bg-espresso/10 text-espresso",
-  cancelado: "bg-rosewood/10 text-rosewood",
-  reprogramado: "bg-espresso/5 text-espresso/60",
-};
-
-function nombreCliente(turno: Turno): string {
-  if (!turno.usuario) return "—";
-  return `${turno.usuario.nombre} ${turno.usuario.apellido ?? ""}`.trim();
-}
-
-function nombreServicios(turno: Turno): string {
-  if (!turno.turno_servicios || turno.turno_servicios.length === 0) return "—";
-  return turno.turno_servicios.map((ts) => ts.servicio.nombre).join(", ");
-}
-
-function totalTurno(turno: Turno): string {
-  const total = (turno.turno_servicios ?? []).reduce(
-    (acc, ts) => acc + precioANumero(ts.precio_unitario),
-    0,
-  );
-  return formatearPrecio(String(total));
-}
-
-function EstadoBadge({ estado }: { estado: EstadoTurno }) {
-  return (
-    <span
-      className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${ESTILO_ESTADO[estado]}`}
-    >
-      {ETIQUETA_ESTADO[estado]}
-    </span>
-  );
-}
-
 export function TurnosAdminPage() {
   // "form" es lo que se está tipeando; "aplicados" es lo que realmente consulta
   // al backend (se actualiza al buscar, así no se dispara una request por tecla).
@@ -85,9 +49,7 @@ export function TurnosAdminPage() {
   const [pagina, setPagina] = useState(1);
 
   const [toast, setToast] = useState<ToastState>(null);
-  const [turnoDetalle, setTurnoDetalle] = useState<Turno | null>(null);
-  const [turnoACancelar, setTurnoACancelar] = useState<Turno | null>(null);
-  const [errorCancelar, setErrorCancelar] = useState("");
+  const gestion = useGestionTurnoAdmin((message, type) => setToast({ message, type }));
 
   const filtros: FiltrosTurnosAdmin = {
     busqueda: aplicados.busqueda.trim() || undefined,
@@ -99,8 +61,6 @@ export function TurnosAdminPage() {
   };
 
   const { data, isLoading, isFetching, isError } = useTurnosAdmin(filtros);
-  const cancelarTurno = useCancelarTurnoAdmin();
-  const marcarAtendido = useMarcarAtendido();
 
   const turnos = data?.data ?? [];
   const total = data?.total ?? 0;
@@ -120,38 +80,6 @@ export function TurnosAdminPage() {
     setForm(FILTROS_VACIOS);
     setAplicados(FILTROS_VACIOS);
     setPagina(1);
-  }
-
-  function handleMarcarAtendido(turno: Turno) {
-    marcarAtendido.mutate(turno.id, {
-      onSuccess: () => {
-        setTurnoDetalle(null);
-        setToast({ message: "Turno marcado como atendido", type: "success" });
-      },
-      onError: (error) =>
-        setToast({
-          message: extraerMensajeError(error, "No se pudo actualizar el turno"),
-          type: "error",
-        }),
-    });
-  }
-
-  function handleConfirmarCancelar() {
-    if (!turnoACancelar) return;
-    cancelarTurno.mutate(turnoACancelar.id, {
-      onSuccess: () => {
-        setTurnoACancelar(null);
-        setTurnoDetalle(null);
-        setToast({ message: "Turno cancelado", type: "success" });
-      },
-      onError: (error) =>
-        setErrorCancelar(extraerMensajeError(error, "No se pudo cancelar el turno")),
-    });
-  }
-
-  function pedirCancelacion(turno: Turno) {
-    setErrorCancelar("");
-    setTurnoACancelar(turno);
   }
 
   return (
@@ -205,9 +133,7 @@ export function TurnosAdminPage() {
           <Table<Turno>
             data={turnos}
             keyExtractor={(t) => t.id}
-            rowClassName={(t) =>
-              t.estado === "cancelado" || t.estado === "reprogramado" ? "opacity-50" : ""
-            }
+            rowClassName={claseFilaTurno}
             emptyMessage="No hay turnos que coincidan con la búsqueda."
             columns={[
               { header: "Fecha", render: (t) => formatearFechaHora(t.fecha_hora_inicio).fecha },
@@ -218,27 +144,7 @@ export function TurnosAdminPage() {
               { header: "Estado", render: (t) => <EstadoBadge estado={t.estado} /> },
               {
                 header: "Acciones",
-                render: (t) => (
-                  <div className="flex gap-3">
-                    <Button variant="link" onClick={() => setTurnoDetalle(t)}>
-                      Ver
-                    </Button>
-                    {t.estado === "confirmado" && (
-                      <>
-                        <Button
-                          variant="link"
-                          onClick={() => handleMarcarAtendido(t)}
-                          disabled={marcarAtendido.isPending}
-                        >
-                          Atendido
-                        </Button>
-                        <Button variant="link" onClick={() => pedirCancelacion(t)}>
-                          Cancelar
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                ),
+                render: (t) => <AccionesTurnoAdmin turno={t} gestion={gestion} />,
               },
             ]}
           />
@@ -265,85 +171,7 @@ export function TurnosAdminPage() {
         </>
       )}
 
-      <Modal
-        isOpen={turnoDetalle !== null}
-        onClose={() => setTurnoDetalle(null)}
-        title={turnoDetalle ? `Turno #${turnoDetalle.id}` : "Turno"}
-      >
-        {turnoDetalle && (
-          <div className="flex flex-col gap-4 text-sm text-espresso">
-            <div className="flex items-center justify-between">
-              <span className="font-medium">
-                {formatearFechaHora(turnoDetalle.fecha_hora_inicio).fecha} ·{" "}
-                {formatearFechaHora(turnoDetalle.fecha_hora_inicio).hora} a{" "}
-                {formatearFechaHora(turnoDetalle.fecha_hora_fin).hora}
-              </span>
-              <EstadoBadge estado={turnoDetalle.estado} />
-            </div>
-
-            <div>
-              <p className="text-xs font-medium uppercase tracking-widest text-espresso/60">
-                Cliente
-              </p>
-              <p>{nombreCliente(turnoDetalle)}</p>
-              <p className="text-espresso/70">{turnoDetalle.usuario?.telefono ?? "Sin teléfono"}</p>
-            </div>
-
-            <div>
-              <p className="mb-1 text-xs font-medium uppercase tracking-widest text-espresso/60">
-                Servicios
-              </p>
-              <ul className="flex flex-col gap-1">
-                {(turnoDetalle.turno_servicios ?? []).map((ts) => (
-                  <li key={ts.id} className="flex justify-between">
-                    <span>
-                      {ts.servicio.nombre}{" "}
-                      <span className="text-espresso/50">
-                        ({formatearDuracion(ts.servicio.duracion_minutos)})
-                      </span>
-                    </span>
-                    <span>{formatearPrecio(ts.precio_unitario)}</span>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-2 flex justify-between border-t border-espresso/10 pt-2 font-medium">
-                <span>Total</span>
-                <span>{totalTurno(turnoDetalle)}</span>
-              </p>
-            </div>
-
-            {turnoDetalle.turno_origen_id && (
-              <p className="text-espresso/60">
-                Reprogramación del turno #{turnoDetalle.turno_origen_id}
-              </p>
-            )}
-
-            {turnoDetalle.estado === "confirmado" && (
-              <div className="flex gap-3 pt-2">
-                <Button
-                  onClick={() => handleMarcarAtendido(turnoDetalle)}
-                  disabled={marcarAtendido.isPending}
-                >
-                  Marcar atendido
-                </Button>
-                <Button variant="subtle" onClick={() => pedirCancelacion(turnoDetalle)}>
-                  Cancelar turno
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
-
-      <ConfirmDialog
-        isOpen={turnoACancelar !== null}
-        title="Cancelar turno"
-        message={`¿Seguro que querés cancelar el turno de ${turnoACancelar ? nombreCliente(turnoACancelar) : "este cliente"}? Se le avisará a la clienta.`}
-        onConfirm={handleConfirmarCancelar}
-        onCancel={() => setTurnoACancelar(null)}
-        isConfirming={cancelarTurno.isPending}
-        errorMessage={errorCancelar}
-      />
+      <ModalesGestionTurno gestion={gestion} />
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>

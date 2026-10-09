@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { isAxiosError } from "axios";
 import { Button } from "../../components/common/Button";
 import { Modal } from "../../components/common/Modal";
 import { Toast } from "../../components/common/Toast";
@@ -17,6 +16,7 @@ import {
   formatearFechaLarga,
   formatearHora,
 } from "../../utils/fechas";
+import { extraerMensajeError } from "../../utils/extraerMensajeError";
 import { formatearDuracion, precioANumero } from "../../utils/servicio";
 
 // CU-09 / CU-10 / CU-11: el cliente con sesión ve sus turnos y puede cancelar o
@@ -26,14 +26,6 @@ const HORAS_MINIMAS = 12;
 const MS_HORA = 60 * 60 * 1000;
 
 type ToastState = { message: string; type: "success" | "error" } | null;
-
-function extraerMensaje(error: unknown, porDefecto: string): string {
-  if (isAxiosError(error) && error.response?.data?.message) {
-    const msg = error.response.data.message;
-    return Array.isArray(msg) ? msg.join(", ") : msg;
-  }
-  return porDefecto;
-}
 
 function resumen(turno: Turno) {
   const servicios = turno.turno_servicios ?? [];
@@ -71,7 +63,7 @@ export function MisTurnosPage() {
         setTurnoACancelar(null);
         setToast({ message: "Turno cancelado", type: "success" });
       },
-      onError: (error) => setErrorCancelar(extraerMensaje(error, "No se pudo cancelar el turno")),
+      onError: (error) => setErrorCancelar(extraerMensajeError(error, "No se pudo cancelar el turno")),
     });
   }
 
@@ -86,7 +78,7 @@ export function MisTurnosPage() {
           setToast({ message: "Turno reprogramado correctamente", type: "success" });
         },
         onError: (error) =>
-          setErrorReprogramar(extraerMensaje(error, "No se pudo reprogramar el turno")),
+          setErrorReprogramar(extraerMensajeError(error, "No se pudo reprogramar el turno")),
       },
     );
   }

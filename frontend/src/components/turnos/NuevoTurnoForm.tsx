@@ -3,8 +3,9 @@ import { Button } from "../common/Button";
 import { Input } from "../common/Input";
 import { useServicios } from "../../hooks/useServicios";
 import { useUsuarios } from "../../hooks/useUsuarios";
-import { useDisponibilidad } from "../../hooks/useTurnos";
-import { hoyISO } from "../../utils/fechas";
+import { useDiasReservables, useDisponibilidad } from "../../hooks/useTurnos";
+import { SelectorFecha } from "./SelectorFecha";
+import { SelectorHorario } from "./SelectorHorario";
 import {
   MAX_DURACION_TURNO_MINUTOS,
   MENSAJE_DURACION_MAXIMA,
@@ -46,13 +47,20 @@ export function NuevoTurnoForm({
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
   const [serviciosSel, setServiciosSel] = useState<number[]>([]);
-  const [fecha, setFecha] = useState(fechaInicial ?? hoyISO());
+  // Arranca en fechaInicial (el día que la admin está mirando en la agenda) solo
+  // si tiene atención; si no, queda sin elegir y se elige entre los días con atención.
+  const [fecha, setFecha] = useState<string | null>(fechaInicial ?? null);
   const [hora, setHora] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   const { data: servicios = [], isLoading: cargandoServicios } = useServicios();
   const { data: clientes = [] } = useUsuarios({ rol: "cliente" });
-  const { data: slots = [], isLoading: cargandoSlots } = useDisponibilidad(serviciosSel, fecha);
+  const { data: dias = [], isLoading: cargandoDias } = useDiasReservables();
+  const fechaValida = fecha !== null && dias.includes(fecha) ? fecha : null;
+  const { data: slots = [], isLoading: cargandoSlots } = useDisponibilidad(
+    serviciosSel,
+    fechaValida ?? "",
+  );
 
   const serviciosActivos = servicios.filter((s) => s.activo);
   const elegidos = serviciosActivos.filter((s) => serviciosSel.includes(s.id));
@@ -103,13 +111,17 @@ export function NuevoTurnoForm({
       setError(MENSAJE_DURACION_MAXIMA);
       return;
     }
+    if (!fechaValida) {
+      setError("Elegí un día con atención");
+      return;
+    }
     if (!hora) {
       setError("Elegí un horario disponible");
       return;
     }
 
     setError("");
-    const base = { servicios: serviciosSel, fecha, hora_inicio: hora };
+    const base = { servicios: serviciosSel, fecha: fechaValida, hora_inicio: hora };
     onSubmit(
       modo === "existente"
         ? { ...base, usuario_id: usuarioId as number }
@@ -118,6 +130,12 @@ export function NuevoTurnoForm({
   }
 
   const mensaje = error || errorMessage;
+  const mensajeHorario =
+    serviciosSel.length === 0
+      ? "Elegí servicios para ver los horarios."
+      : !fechaValida
+        ? "Elegí un día para ver los horarios."
+        : undefined;
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
@@ -245,46 +263,28 @@ export function NuevoTurnoForm({
 
       {/* Fecha y horario */}
       <div>
-        <label className="mb-1 block text-sm font-medium text-espresso/70">Fecha</label>
-        <input
-          type="date"
-          value={fecha}
-          onChange={(e) => {
-            setFecha(e.target.value);
+        <p className="mb-2 text-sm font-medium text-espresso/70">Fecha</p>
+        <SelectorFecha
+          diasHabilitados={dias}
+          value={fechaValida}
+          isLoading={cargandoDias}
+          onChange={(f) => {
+            setFecha(f);
             setHora(null);
+            setError("");
           }}
-          className={INPUT_CLASS}
         />
         <div className="mt-3">
-          {serviciosSel.length === 0 && (
-            <p className="text-xs text-espresso/50">Elegí servicios para ver los horarios.</p>
-          )}
-          {serviciosSel.length > 0 && cargandoSlots && (
-            <p className="text-xs text-espresso/50">Buscando horarios...</p>
-          )}
-          {serviciosSel.length > 0 && !cargandoSlots && slots.length === 0 && (
-            <p className="text-xs text-espresso/50">
-              No hay horarios disponibles ese día — probá con otra fecha.
-            </p>
-          )}
-          {slots.length > 0 && (
-            <div className="grid grid-cols-4 gap-2">
-              {slots.map((slot) => (
-                <button
-                  key={slot.hora_inicio}
-                  type="button"
-                  onClick={() => setHora(slot.hora_inicio)}
-                  className={`rounded-xl border py-2 text-sm transition ${
-                    hora === slot.hora_inicio
-                      ? "border-rosewood bg-rosewood/5 text-rosewood"
-                      : "border-espresso/15 text-espresso hover:border-rosewood"
-                  }`}
-                >
-                  {slot.hora_inicio}
-                </button>
-              ))}
-            </div>
-          )}
+          <SelectorHorario
+            slots={slots}
+            value={hora}
+            isLoading={cargandoSlots}
+            mensajeInactivo={mensajeHorario}
+            onChange={(h) => {
+              setHora(h);
+              setError("");
+            }}
+          />
         </div>
       </div>
 

@@ -1,16 +1,14 @@
 import { useState, type FormEvent } from "react";
 import { Button } from "../common/Button";
-import { useDisponibilidad } from "../../hooks/useTurnos";
+import { useDiasReservables, useDisponibilidad } from "../../hooks/useTurnos";
 import { SelectorFecha } from "./SelectorFecha";
-import { useDiasHabilitados } from "../../hooks/useTurnos";
-import { formatearFechaLarga, formatearHora, hoyISO, sumarDias } from "../../utils/fechas";
+import { SelectorHorario } from "./SelectorHorario";
+import { formatearFechaLarga, formatearHora, hoyISO } from "../../utils/fechas";
 import type { ReprogramarTurnoAdminPayload } from "../../types/turno";
 
 // Reprogramar un turno (cliente y admin): se elige una fecha y un horario de
 // la grilla de disponibilidad calculada para los MISMOS servicios del turno
 // (reprogramar no cambia los servicios). El backend valida igual al confirmar.
-
-const DIAS_VISIBLES = 45;
 
 interface Props {
   servicioIds: number[];
@@ -39,12 +37,12 @@ export function ReprogramarTurnoForm({
   const [hora, setHora] = useState<string | null>(null);
   const [error, setError] = useState("");
 
-  const { data: dias = [], isLoading: cargandoDias } = useDiasHabilitados(
-    hoy,
-    sumarDias(hoy, DIAS_VISIBLES),
-  );
+  const { data: dias = [], isLoading: cargandoDias } = useDiasReservables();
   const fechaValida = fecha !== null && dias.includes(fecha) ? fecha : null;
-  const { data: slots = [], isLoading } = useDisponibilidad(servicioIds, fechaValida ?? "");
+  const { data: slots = [], isLoading: cargandoSlots } = useDisponibilidad(
+    servicioIds,
+    fechaValida ?? "",
+  );
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -89,34 +87,16 @@ export function ReprogramarTurnoForm({
 
       <div>
         <p className="mb-2 text-sm font-medium text-espresso/70">Nuevo horario</p>
-        {!fechaValida && <p className="text-xs text-espresso/50">Elegí un día para ver los horarios.</p>}
-        {fechaValida && isLoading && <p className="text-xs text-espresso/50">Buscando horarios...</p>}
-        {fechaValida && !isLoading && slots.length === 0 && (
-          <p className="text-xs text-espresso/50">
-            No hay horarios disponibles ese día — probá con otra fecha.
-          </p>
-        )}
-        {slots.length > 0 && (
-          <div className="grid grid-cols-4 gap-2">
-            {slots.map((slot) => (
-              <button
-                key={slot.hora_inicio}
-                type="button"
-                onClick={() => {
-                  setHora(slot.hora_inicio);
-                  setError("");
-                }}
-                className={`rounded-xl border py-2 text-sm transition ${
-                  hora === slot.hora_inicio
-                    ? "border-rosewood bg-rosewood/5 text-rosewood"
-                    : "border-espresso/15 text-espresso hover:border-rosewood"
-                }`}
-              >
-                {slot.hora_inicio}
-              </button>
-            ))}
-          </div>
-        )}
+        <SelectorHorario
+          slots={slots}
+          value={hora}
+          isLoading={cargandoSlots}
+          mensajeInactivo={!fechaValida ? "Elegí un día para ver los horarios." : undefined}
+          onChange={(h) => {
+            setHora(h);
+            setError("");
+          }}
+        />
       </div>
 
       {mensaje && <p className="text-sm text-rosewood">{mensaje}</p>}

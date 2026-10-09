@@ -15,6 +15,7 @@ import {
   cancelarMiTurno,
   reprogramarMiTurno,
 } from "../api/turnos";
+import { hoyISO, sumarDias } from "../utils/fechas";
 import type {
   FiltrosTurnosAdmin,
   ReprogramarTurnoAdminPayload,
@@ -62,6 +63,16 @@ export function useDiasHabilitados(desde: string, hasta: string) {
     queryFn: () => obtenerDiasHabilitados(desde, hasta),
     staleTime: 5 * 60 * 1000,
   });
+}
+
+// Ventana de días que se ofrece al reservar o reprogramar (el backend acepta
+// hasta 62). Único lugar donde se define: lo usan TurnosPage, NuevoTurnoForm y
+// ReprogramarTurnoForm.
+const DIAS_VISIBLES_RESERVA = 45;
+
+export function useDiasReservables() {
+  const hoy = hoyISO();
+  return useDiasHabilitados(hoy, sumarDias(hoy, DIAS_VISIBLES_RESERVA));
 }
 
 export function useMisTurnos() {
