@@ -12,6 +12,7 @@ import { ApiTags } from "@nestjs/swagger";
 import { CategoriasProductoService } from "./categorias-producto.service";
 import { CrearCategoriaProductoDto } from "./dto/crear-categoria-producto.dto";
 import { ActualizarCategoriaProductoDto } from "./dto/actualizar-categoria-producto.dto";
+import { SoloAdmin } from "../auth/decorators/auth.decorators";
 
 @ApiTags("categorias-producto")
 @Controller("categorias-producto")
@@ -30,13 +31,13 @@ export class CategoriasProductoController {
     return this.categoriasProductoService.findOne(id);
   }
 
-  // TODO: restringir a admin cuando estén los guards de auth
+  @SoloAdmin()
   @Post()
   create(@Body() dto: CrearCategoriaProductoDto) {
     return this.categoriasProductoService.create(dto);
   }
 
-  // TODO: restringir a admin cuando estén los guards de auth
+  @SoloAdmin()
   @Patch(":id")
   update(
     @Param("id", ParseIntPipe) id: number,
@@ -45,7 +46,7 @@ export class CategoriasProductoController {
     return this.categoriasProductoService.update(id, dto);
   }
 
-  // TODO: restringir a admin cuando estén los guards de auth
+  @SoloAdmin()
   @Delete(":id")
   remove(@Param("id", ParseIntPipe) id: number) {
     return this.categoriasProductoService.remove(id);
