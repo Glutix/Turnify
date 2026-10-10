@@ -6,6 +6,11 @@ import type { Servicio } from "../../types/servicio";
 
 interface ServicioCardProps {
   servicio: Servicio;
+  /** Modo /turnos: el segundo botón agrega/quita del turno en vez de navegar. */
+  modoTurno?: boolean;
+  seleccionado?: boolean;
+  deshabilitado?: boolean;
+  onToggle?: () => void;
 }
 
 const FOCUS =
@@ -16,9 +21,21 @@ const FOCUS =
  * "Ver detalles" → /servicios/:id · "Reservar ahora" → /turnos con el
  * servicio ya seleccionado.
  */
-export function ServicioCard({ servicio }: ServicioCardProps) {
+export function ServicioCard({
+  servicio,
+  modoTurno = false,
+  seleccionado = false,
+  deshabilitado = false,
+  onToggle,
+}: ServicioCardProps) {
   return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-rosewood/10 bg-superficie shadow-sm transition hover:shadow-md">
+    <article
+      className={`group flex h-full flex-col overflow-hidden rounded-2xl border bg-superficie shadow-sm transition hover:shadow-md ${
+        seleccionado
+          ? "border-rosewood ring-2 ring-rosewood/20"
+          : "border-rosewood/10"
+      }`}
+    >
       <Link
         to={`/servicios/${servicio.id}`}
         tabIndex={-1}
@@ -59,12 +76,28 @@ export function ServicioCard({ servicio }: ServicioCardProps) {
           >
             Ver detalles
           </Link>
-          <Link
-            to={`/turnos?servicio=${servicio.id}`}
-            className={`flex-1 rounded-full bg-linear-to-r from-oro to-rosewood px-4 py-2.5 text-center text-sm font-semibold uppercase tracking-widest text-superficie shadow-sm transition hover:shadow-md ${FOCUS}`}
-          >
-            Reservar ahora
-          </Link>
+          {modoTurno ? (
+            <button
+              type="button"
+              onClick={onToggle}
+              disabled={deshabilitado && !seleccionado}
+              aria-pressed={seleccionado}
+              className={`flex-1 rounded-full px-4 py-2.5 text-center text-sm font-semibold uppercase tracking-widest transition disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS} ${
+                seleccionado
+                  ? "border border-rosewood bg-rosewood/5 text-rosewood"
+                  : "bg-linear-to-r from-oro to-rosewood text-superficie shadow-sm hover:shadow-md"
+              }`}
+            >
+              {seleccionado ? "Quitar" : deshabilitado ? "No entra" : "Agregar"}
+            </button>
+          ) : (
+            <Link
+              to={`/turnos?servicio=${servicio.id}`}
+              className={`flex-1 rounded-full bg-linear-to-r from-oro to-rosewood px-4 py-2.5 text-center text-sm font-semibold uppercase tracking-widest text-superficie shadow-sm transition hover:shadow-md ${FOCUS}`}
+            >
+              Reservar ahora
+            </Link>
+          )}
         </div>
       </div>
     </article>

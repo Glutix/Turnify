@@ -6,6 +6,8 @@ import { Button } from "../../components/common/Button";
 import { Input } from "../../components/common/Input";
 import { IconPhone, IconUser, IconArrowLeft } from "../../components/common/Icons";
 import { CodeStep } from "../../components/auth/CodeStep";
+import { CatalogoServicios } from "../../components/servicios/CatalogoServicios";
+import { ResumenTurno } from "../../components/turnos/ResumenTurno";
 import { SelectorFecha } from "../../components/turnos/SelectorFecha";
 import { SelectorHorario } from "../../components/turnos/SelectorHorario";
 import { solicitarCodigo } from "../../api/auth";
@@ -19,7 +21,7 @@ import {
 import { useAuthStore } from "../../stores/authStore";
 import { extraerIntentosRestantes, extraerMensajeError } from "../../utils/extraerMensajeError";
 import { MAX_DURACION_TURNO_MINUTOS, MENSAJE_DURACION_MAXIMA } from "../../utils/servicio";
-import { formatearDuracion, formatearPrecio, precioANumero } from "../../utils/servicio";
+import { formatearDuracion, precioANumero } from "../../utils/servicio";
 import type { Servicio } from "../../types/servicio";
 import type { Turno } from "../../types/turno";
 
@@ -56,12 +58,18 @@ export function TurnosPage() {
 
   // Paso 1: servicios
   const { data: servicios = [], isLoading: cargandoServicios } = useServicios();
-// ?servicio=ID (desde "Reservar ahora" de las cards) preselecciona ese servicio.
+  // ?servicio=ID (desde "Reservar ahora" de las cards) preselecciona ese servicio.
   const [searchParams] = useSearchParams();
-  const [serviciosSeleccionados, setServiciosSeleccionados] = useState<number[]>(() => {
-      const preseleccionado = Number(searchParams.get("servicio"));
-      return Number.isInteger(preseleccionado) && preseleccionado > 0 ? [preseleccionado] : [];
+  const [seleccionIds, setServiciosSeleccionados] = useState<number[]>(() => {
+    const preseleccionado = Number(searchParams.get("servicio"));
+    return Number.isInteger(preseleccionado) && preseleccionado > 0 ? [preseleccionado] : [];
   });
+  // Solo cuentan los servicios que existen y están activos (un ?servicio=
+  // inválido en la URL se ignora en vez de llegar al backend).
+  const serviciosSeleccionados = seleccionIds.filter((id) =>
+    servicios.some((s) => s.id === id && s.activo),
+  );
+
   // Paso 2: fecha y horario
   // Vacío hasta que se elige un día: solo se ofrecen los días con atención.
   const [fecha, setFecha] = useState("");
@@ -307,7 +315,7 @@ export function TurnosPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-16">
+    <div className={`mx-auto px-6 py-16 ${paso === "servicios" ? "max-w-6xl" : "max-w-2xl"}`}>
       <div className="mb-10 text-center">
         <h1 className="font-serif text-4xl text-espresso">Reservar turno</h1>
         <p className="mt-3 text-sm text-espresso/60">
@@ -317,53 +325,48 @@ export function TurnosPage() {
 
       {/* Paso 1: servicios */}
       {paso === "servicios" && (
-        <div className="flex flex-col gap-4">
-          {cargandoServicios && (
-            <p className="py-10 text-center text-sm text-espresso/50">Cargando servicios...</p>
-          )}
-          {!cargandoServicios && servicios.filter((s) => s.activo).length === 0 && (
-            <p className="py-10 text-center text-sm text-espresso/50">
-              No hay servicios disponibles por el momento.
-            </p>
-          )}
-          <div className="flex flex-col gap-3">
-            {servicios
-              .filter((s) => s.activo)
-              .map((servicio) => {
-                const elegido = serviciosSeleccionados.includes(servicio.id);
-                return (
-                  <button
-                    key={servicio.id}
-                    type="button"
-                    onClick={() => toggleServicio(servicio)}
-                    className={`flex items-center justify-between rounded-xl border px-5 py-4 text-left transition ${
-                      elegido
-                        ? "border-rosewood bg-rosewood/5"
-                        : "border-espresso/10 hover:border-rosewood/30"
-                    }`}
-                  >
-                    <div>
-                      <p className="font-serif text-lg text-espresso">{servicio.nombre}</p>
-                      <p className="text-xs text-espresso/50">
-                        {formatearDuracion(servicio.duracion_minutos)}
-                      </p>
-                    </div>
-                    <span className="font-semibold text-rosewood">
-                      {formatearPrecio(servicio.precio)}
-                    </span>
-                  </button>
-                );
-              })}
+        <div className="grid gap-8 lg:grid-cols-[1fr_22rem]">
+          <div>
+            {cargandoServicios && (
+              <p className="py-10 text-center text-sm text-espresso/50">Cargando servicios...</p>
+            )}
+            {!cargandoServicios && servicios.filter((s) => s.activo).length === 0 && (
+              <p className="py-10 text-center text-sm text-espresso/50">
+                No hay servicios disponibles por el momento.
+              </p>
+            )}
+            {excedeDuracionMaxima && (
+              <p className="mb-4 rounded-xl bg-rosewood/5 px-4 py-3 text-sm text-rosewood">
+                {MENSAJE_DURACION_MAXIMA}
+              </p>
+            )}
+            {servicios.some((s) => s.activo) && (
+              <CatalogoServicios
+                servicios={servicios.filter((s) => s.activo)}
+                columnas="2"
+                seleccionados={serviciosSeleccionados}
+                onToggle={toggleServicio}
+                noEntra={(s) => duracionTotal + s.duracion_minutos > MAX_DURACION_TURNO_MINUTOS}
+              />
+            )}
           </div>
 
-          {excedeDuracionMaxima && (
-            <p className="rounded-xl bg-rosewood/5 px-4 py-3 text-sm text-rosewood">
-              {MENSAJE_DURACION_MAXIMA}
-            </p>
-          )}
+          {/* Escritorio: panel "Tu turno" fijo a la derecha */}
+          <div className="hidden lg:block">
+            <div className="sticky top-28">
+              <ResumenTurno
+                elegidos={serviciosElegidos}
+                duracionTotal={duracionTotal}
+                precioTotal={precioTotal}
+                onQuitar={toggleServicio}
+                onContinuar={irAHorario}
+              />
+            </div>
+          </div>
 
+          {/* Mobile: barra inferior con el resumen */}
           {serviciosSeleccionados.length > 0 && (
-            <div className="sticky bottom-4 mt-4 flex items-center justify-between rounded-xl border border-espresso/10 bg-superficie p-4 shadow-md">
+            <div className="sticky bottom-4 flex items-center justify-between rounded-xl border border-espresso/10 bg-superficie p-4 shadow-md lg:hidden">
               <div className="text-sm text-espresso/70">
                 {serviciosSeleccionados.length} servicio(s) — {formatearDuracion(duracionTotal)} —{" "}
                 <span className="font-semibold text-rosewood">
