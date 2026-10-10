@@ -15,9 +15,14 @@ import type {
 export async function consultarDisponibilidad(
   servicios: number[],
   fecha: string,
+  excluirTurnoId?: number,
 ): Promise<SlotDisponible[]> {
   const { data } = await api.get("/turnos/disponibilidad", {
-    params: { servicios: servicios.join(","), fecha },
+    params: {
+      servicios: servicios.join(","),
+      fecha,
+      ...(excluirTurnoId !== undefined ? { excluir_turno: excluirTurnoId } : {}),
+    },
   });
   return data;
 }
@@ -63,6 +68,11 @@ export async function reprogramarMiTurno(
 
 export async function obtenerAgenda(fecha?: string): Promise<Turno[]> {
   const { data } = await api.get("/turnos/admin/agenda", { params: fecha ? { fecha } : {} });
+  return data;
+}
+
+export async function obtenerProximosTurnos(): Promise<Turno[]> {
+  const { data } = await api.get("/turnos/admin/proximos");
   return data;
 }
 

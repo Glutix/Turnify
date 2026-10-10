@@ -63,11 +63,17 @@ export function useActualizarMiPerfil() {
   });
 }
 
-export function useUsuarios(filtros: FiltrosUsuarios = {}) {
+// `enabled: false` permite no consultar hasta que haga falta (ej. buscador que
+// espera a que se escriba algo).
+export function useUsuarios(
+  filtros: FiltrosUsuarios = {},
+  opciones: { enabled?: boolean } = {},
+) {
   return useQuery({
     queryKey: [...QUERY_KEY, filtros],
     queryFn: () => getUsuarios(filtros),
     placeholderData: keepPreviousData,
+    enabled: opciones.enabled ?? true,
   });
 }
 

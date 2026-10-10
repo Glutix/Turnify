@@ -1,6 +1,7 @@
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   obtenerAgenda,
+  obtenerProximosTurnos,
   listarTurnosAdmin,
   cancelarTurnoAdmin,
   reprogramarTurnoAdmin,
@@ -32,10 +33,11 @@ export const QUERY_KEY_TURNOS = ["turnos"];
 
 // --- Público / invitado (CU-06 / CU-07) ---
 
-export function useDisponibilidad(servicios: number[], fecha: string) {
+// `excluirTurnoId`: al reprogramar, el propio turno no bloquea su horario.
+export function useDisponibilidad(servicios: number[], fecha: string, excluirTurnoId?: number) {
   return useQuery({
-    queryKey: ["turnos", "disponibilidad", servicios, fecha],
-    queryFn: () => consultarDisponibilidad(servicios, fecha),
+    queryKey: ["turnos", "disponibilidad", servicios, fecha, excluirTurnoId ?? null],
+    queryFn: () => consultarDisponibilidad(servicios, fecha, excluirTurnoId),
     enabled: servicios.length > 0 && !!fecha,
   });
 }
@@ -106,6 +108,14 @@ export function useAgenda(fecha?: string) {
   return useQuery({
     queryKey: [...QUERY_KEY_AGENDA, fecha ?? "hoy"],
     queryFn: () => obtenerAgenda(fecha),
+  });
+}
+
+// Cuelga de la raíz de la agenda, así las mismas mutations lo invalidan.
+export function useProximosTurnos() {
+  return useQuery({
+    queryKey: [...QUERY_KEY_AGENDA, "proximos"],
+    queryFn: obtenerProximosTurnos,
   });
 }
 

@@ -12,6 +12,7 @@ import type { ReprogramarTurnoAdminPayload } from "../../types/turno";
 
 interface Props {
   servicioIds: number[];
+  turnoId?: number; // el turno que se reprograma: no debe bloquear su propio horario
   fechaHoraActual?: string; // ISO del turno que se reprograma
   onSubmit: (payload: ReprogramarTurnoAdminPayload) => void;
   onCancel: () => void;
@@ -21,6 +22,7 @@ interface Props {
 
 export function ReprogramarTurnoForm({
   servicioIds,
+  turnoId,
   fechaHoraActual,
   onSubmit,
   onCancel,
@@ -42,6 +44,7 @@ export function ReprogramarTurnoForm({
   const { data: slots = [], isLoading: cargandoSlots } = useDisponibilidad(
     servicioIds,
     fechaValida ?? "",
+    turnoId,
   );
 
   function handleSubmit(e: FormEvent) {

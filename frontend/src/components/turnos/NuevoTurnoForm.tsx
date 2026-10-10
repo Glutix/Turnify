@@ -1,8 +1,9 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { Button } from "../common/Button";
 import { Input } from "../common/Input";
 import { useServicios } from "../../hooks/useServicios";
 import { useUsuarios } from "../../hooks/useUsuarios";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { useDiasReservables, useDisponibilidad } from "../../hooks/useTurnos";
 import { SelectorFecha } from "./SelectorFecha";
 import { SelectorHorario } from "./SelectorHorario";
@@ -14,6 +15,7 @@ import {
   precioANumero,
 } from "../../utils/servicio";
 import type { ReservarTurnoAdminPayload } from "../../types/turno";
+import type { Usuario } from "../../types/usuario";
 
 // CU-41 / RF33: la admin carga un turno a mano (reserva por WhatsApp o en
 // persona). No pasa por OTP: lo carga ella. La disponibilidad se valida igual
@@ -22,7 +24,10 @@ import type { ReservarTurnoAdminPayload } from "../../types/turno";
 const INPUT_CLASS =
   "w-full rounded-xl border border-espresso/15 bg-superficie px-4 py-2.5 text-sm text-espresso focus:border-rosewood focus:outline-none focus:ring-2 focus:ring-rosewood/20";
 const MAX_DIGITOS_TELEFONO = 10;
-const MAX_CLIENTES_VISIBLES = 6;
+// El buscador de clientas no consulta ni lista nada hasta tener este mínimo de caracteres.
+const MIN_CARACTERES_BUSQUEDA = 3;
+const MAX_CLIENTES_VISIBLES = 8;
+const RETARDO_BUSQUEDA_MS = 300;
 
 type Modo = "existente" | "nueva";
 
@@ -43,7 +48,7 @@ export function NuevoTurnoForm({
 }: Props) {
   const [modo, setModo] = useState<Modo>("existente");
   const [busqueda, setBusqueda] = useState("");
-  const [usuarioId, setUsuarioId] = useState<number | null>(null);
+  const [clienteSel, setClienteSel] = useState<Usuario | null>(null);
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
   const [serviciosSel, setServiciosSel] = useState<number[]>([]);
@@ -54,7 +59,21 @@ export function NuevoTurnoForm({
   const [error, setError] = useState("");
 
   const { data: servicios = [], isLoading: cargandoServicios } = useServicios();
-  const { data: clientes = [] } = useUsuarios({ rol: "cliente" });
+  // La búsqueda se hace en el servidor (nombre, apellido, teléfono o email) y solo
+  // cuando hay texto suficiente: sin texto no se pide ni se muestra ninguna clienta.
+  const textoBusqueda = busqueda.trim();
+  const textoDebounced = useDebouncedValue(textoBusqueda, RETARDO_BUSQUEDA_MS);
+  const buscando =
+    textoBusqueda.length >= MIN_CARACTERES_BUSQUEDA &&
+    textoDebounced.length >= MIN_CARACTERES_BUSQUEDA;
+  const { data: resultados = [], isFetching: cargandoClientes } = useUsuarios(
+    { rol: "cliente", busqueda: textoDebounced },
+    { enabled: buscando },
+  );
+  const clientesVisibles = resultados.slice(0, MAX_CLIENTES_VISIBLES);
+  const hayMasResultados = resultados.length > MAX_CLIENTES_VISIBLES;
+  const esperandoBusqueda =
+    textoBusqueda.length >= MIN_CARACTERES_BUSQUEDA && (!buscando || textoDebounced !== textoBusqueda);
   const { data: dias = [], isLoading: cargandoDias } = useDiasReservables();
   const fechaValida = fecha !== null && dias.includes(fecha) ? fecha : null;
   const { data: slots = [], isLoading: cargandoSlots } = useDisponibilidad(
@@ -67,18 +86,6 @@ export function NuevoTurnoForm({
   const duracionTotal = elegidos.reduce((acc, s) => acc + s.duracion_minutos, 0);
   const precioTotal = elegidos.reduce((acc, s) => acc + precioANumero(s.precio), 0);
 
-  const clientesFiltrados = useMemo(() => {
-    const texto = busqueda.trim().toLowerCase();
-    const lista = texto
-      ? clientes.filter((c) =>
-          `${c.nombre} ${c.apellido ?? ""} ${c.telefono ?? ""} ${c.email ?? ""}`
-            .toLowerCase()
-            .includes(texto),
-        )
-      : clientes;
-    return lista.slice(0, MAX_CLIENTES_VISIBLES);
-  }, [clientes, busqueda]);
-
   function toggleServicio(id: number) {
     setServiciosSel((actual) =>
       actual.includes(id) ? actual.filter((s) => s !== id) : [...actual, id],
@@ -89,7 +96,7 @@ export function NuevoTurnoForm({
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
 
-    if (modo === "existente" && usuarioId === null) {
+    if (modo === "existente" && clienteSel === null) {
       setError("Elegí una clienta de la lista");
       return;
     }
@@ -124,7 +131,7 @@ export function NuevoTurnoForm({
     const base = { servicios: serviciosSel, fecha: fechaValida, hora_inicio: hora };
     onSubmit(
       modo === "existente"
-        ? { ...base, usuario_id: usuarioId as number }
+        ? { ...base, usuario_id: clienteSel!.id }
         : { ...base, nombre: nombre.trim(), telefono },
     );
   }
@@ -162,39 +169,78 @@ export function NuevoTurnoForm({
         </div>
 
         {modo === "existente" ? (
-          <div className="flex flex-col gap-2">
-            <input
-              type="search"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar por nombre, teléfono o email"
-              className={INPUT_CLASS}
-            />
-            <div className="flex flex-col gap-1.5">
-              {clientesFiltrados.length === 0 && (
-                <p className="py-2 text-center text-xs text-espresso/50">
-                  No hay clientas que coincidan.
+          clienteSel ? (
+            <div className="flex items-center justify-between rounded-xl border border-rosewood bg-rosewood/5 px-4 py-2 text-sm">
+              <span className="text-espresso">
+                {clienteSel.nombre} {clienteSel.apellido ?? ""}
+                <span className="ml-2 text-xs text-espresso/50">
+                  {clienteSel.telefono ?? "sin teléfono"}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setClienteSel(null);
+                  setBusqueda("");
+                }}
+                className="text-xs font-medium text-rosewood hover:underline"
+              >
+                Cambiar
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <input
+                type="search"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar por nombre, apellido o teléfono"
+                className={INPUT_CLASS}
+              />
+              {textoBusqueda.length > 0 && textoBusqueda.length < MIN_CARACTERES_BUSQUEDA && (
+                <p className="text-xs text-espresso/50">
+                  Escribí al menos {MIN_CARACTERES_BUSQUEDA} letras o dígitos para buscar.
                 </p>
               )}
-              {clientesFiltrados.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => setUsuarioId(c.id)}
-                  className={`flex items-center justify-between rounded-xl border px-4 py-2 text-left text-sm transition ${
-                    usuarioId === c.id
-                      ? "border-rosewood bg-rosewood/5"
-                      : "border-espresso/10 hover:border-rosewood/30"
-                  }`}
-                >
-                  <span className="text-espresso">
-                    {c.nombre} {c.apellido ?? ""}
-                  </span>
-                  <span className="text-xs text-espresso/50">{c.telefono ?? "sin teléfono"}</span>
-                </button>
-              ))}
+              {textoBusqueda.length >= MIN_CARACTERES_BUSQUEDA && (
+                <div className="flex flex-col gap-1.5">
+                  {(esperandoBusqueda || cargandoClientes) && (
+                    <p className="py-2 text-center text-xs text-espresso/50">Buscando...</p>
+                  )}
+                  {!esperandoBusqueda && !cargandoClientes && clientesVisibles.length === 0 && (
+                    <p className="py-2 text-center text-xs text-espresso/50">
+                      No se encontraron clientas.
+                    </p>
+                  )}
+                  {!esperandoBusqueda &&
+                    clientesVisibles.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => {
+                          setClienteSel(c);
+                          setBusqueda("");
+                          setError("");
+                        }}
+                        className="flex items-center justify-between rounded-xl border border-espresso/10 px-4 py-2 text-left text-sm transition hover:border-rosewood/30"
+                      >
+                        <span className="text-espresso">
+                          {c.nombre} {c.apellido ?? ""}
+                        </span>
+                        <span className="text-xs text-espresso/50">
+                          {c.telefono ?? "sin teléfono"}
+                        </span>
+                      </button>
+                    ))}
+                  {!esperandoBusqueda && hayMasResultados && (
+                    <p className="text-center text-xs text-espresso/50">
+                      Hay más coincidencias: seguí escribiendo para acotar.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
-          </div>
+          )
         ) : (
           <div className="flex flex-col gap-4">
             <Input

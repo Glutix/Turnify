@@ -53,7 +53,9 @@ export class TurnosService {
   // CU-06 / RF04 / RF06 — Consultar disponibilidad
   // ============================================================
 
-  async consultarDisponibilidad(servicioIds: number[], fechaStr: string) {
+  // `excluirTurnoId`: al reprogramar, el turno original no debe bloquear su propio
+  // horario (el backend ya lo ignora al validar; acá se ignora al ofrecer slots).
+  async consultarDisponibilidad(servicioIds: number[], fechaStr: string, excluirTurnoId?: number) {
     const { duracionTotalMinutos } = await this.obtenerServiciosValidos(servicioIds);
     const fecha = soloFecha(fechaStr);
 
@@ -75,6 +77,7 @@ export class TurnosService {
         estado: EstadoTurno.confirmado,
         fecha_hora_inicio: { lt: finDia },
         fecha_hora_fin: { gt: inicioDia },
+        ...(excluirTurnoId !== undefined ? { id: { not: excluirTurnoId } } : {}),
       },
       select: { fecha_hora_inicio: true, fecha_hora_fin: true },
     });
@@ -333,6 +336,29 @@ export class TurnosService {
         fecha_hora_inicio: { gte: fecha, lt: finDia },
       },
       orderBy: { fecha_hora_inicio: "asc" },
+      include: {
+        usuario: { select: { id: true, nombre: true, apellido: true, telefono: true } },
+        turno_servicios: { include: { servicio: true } },
+      },
+    });
+  }
+
+  // Próximos turnos (CU-20/RF31): confirmados desde el comienzo de hoy (hora del
+  // salón) en adelante, ordenados por fecha. Tope de 100 para no devolver una
+  // lista ilimitada; el histórico completo está en listarAdmin.
+  async proximosAdmin() {
+    const ahora = ahoraDelSalon();
+    const hoy = new Date(
+      Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth(), ahora.getUTCDate()),
+    );
+
+    return this.prisma.turno.findMany({
+      where: {
+        estado: EstadoTurno.confirmado,
+        fecha_hora_inicio: { gte: hoy },
+      },
+      orderBy: { fecha_hora_inicio: "asc" },
+      take: 100,
       include: {
         usuario: { select: { id: true, nombre: true, apellido: true, telefono: true } },
         turno_servicios: { include: { servicio: true } },

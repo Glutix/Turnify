@@ -11,13 +11,16 @@ import {
 } from "../../components/turnos/GestionTurnoAdmin";
 import { NuevoTurnoForm } from "../../components/turnos/NuevoTurnoForm";
 import { extraerMensajeError } from "../../utils/extraerMensajeError";
-import { useAgenda, useReservarTurnoAdmin } from "../../hooks/useTurnos";
+import { useAgenda, useProximosTurnos, useReservarTurnoAdmin } from "../../hooks/useTurnos";
 import { useGestionTurnoAdmin } from "../../hooks/useGestionTurnoAdmin";
 import { formatearFechaHora, type ReservarTurnoAdminPayload, type Turno } from "../../types/turno";
 import { hoyISO } from "../../utils/fechas";
 import { claseFilaTurno, nombreCliente, nombreServicios } from "../../utils/turno";
 
+type Vista = "dia" | "proximos";
+
 export function AgendaPage() {
+  const [vista, setVista] = useState<Vista>("dia");
   const [fecha, setFecha] = useState(hoyISO());
   const mostrarToast = useToastStore((s) => s.mostrarToast);
 
@@ -26,7 +29,9 @@ export function AgendaPage() {
   const [nuevoTurnoAbierto, setNuevoTurnoAbierto] = useState(false);
   const [errorNuevoTurno, setErrorNuevoTurno] = useState("");
 
-  const { data: turnos = [], isLoading } = useAgenda(fecha);
+  const agendaDia = useAgenda(fecha);
+  const proximos = useProximosTurnos();
+  const { data: turnos = [], isLoading } = vista === "dia" ? agendaDia : proximos;
   const reservarTurnoAdmin = useReservarTurnoAdmin();
 
   function handleSubmitNuevoTurno(payload: ReservarTurnoAdminPayload) {
@@ -48,19 +53,34 @@ export function AgendaPage() {
     <div className="mx-auto max-w-5xl px-6 py-10">
       <h1 className="mb-6 font-serif text-3xl text-espresso">Agenda</h1>
 
-      <div className="mb-6 flex items-end gap-3">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-espresso/70">Día</label>
-          <input
-            type="date"
-            value={fecha}
-            onChange={(e) => setFecha(e.target.value)}
-            className="rounded-xl border border-espresso/15 bg-superficie px-4 py-2.5 text-sm text-espresso focus:border-rosewood focus:outline-none focus:ring-2 focus:ring-rosewood/20"
-          />
+      <div className="mb-6 flex flex-wrap items-end gap-3">
+        <div className="flex gap-2">
+          <Button variant={vista === "dia" ? "primary" : "subtle"} onClick={() => setVista("dia")}>
+            Día
+          </Button>
+          <Button
+            variant={vista === "proximos" ? "primary" : "subtle"}
+            onClick={() => setVista("proximos")}
+          >
+            Próximos
+          </Button>
         </div>
-        <Button variant="subtle" onClick={() => setFecha(hoyISO())}>
-          Hoy
-        </Button>
+        {vista === "dia" && (
+          <>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-espresso/70">Día</label>
+              <input
+                type="date"
+                value={fecha}
+                onChange={(e) => setFecha(e.target.value)}
+                className="rounded-xl border border-espresso/15 bg-superficie px-4 py-2.5 text-sm text-espresso focus:border-rosewood focus:outline-none focus:ring-2 focus:ring-rosewood/20"
+              />
+            </div>
+            <Button variant="subtle" onClick={() => setFecha(hoyISO())}>
+              Hoy
+            </Button>
+          </>
+        )}
         <div className="ml-auto">
           <Button
             onClick={() => {
@@ -80,8 +100,13 @@ export function AgendaPage() {
           data={turnos}
           keyExtractor={(t) => t.id}
           rowClassName={claseFilaTurno}
-          emptyMessage="No hay turnos para este día."
+          emptyMessage={
+            vista === "dia" ? "No hay turnos para este día." : "No hay turnos próximos."
+          }
           columns={[
+            ...(vista === "proximos"
+              ? [{ header: "Fecha", render: (t: Turno) => formatearFechaHora(t.fecha_hora_inicio).fecha }]
+              : []),
             { header: "Hora", render: (t) => formatearFechaHora(t.fecha_hora_inicio).hora },
             { header: "Cliente", render: (t) => nombreCliente(t) },
             { header: "Teléfono", render: (t) => t.usuario?.telefono ?? "—" },

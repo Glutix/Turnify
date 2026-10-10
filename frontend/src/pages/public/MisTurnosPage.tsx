@@ -194,6 +194,7 @@ export function MisTurnosPage() {
       >
         <ReprogramarTurnoForm
           servicioIds={turnoAReprogramar ? resumen(turnoAReprogramar).ids : []}
+          turnoId={turnoAReprogramar?.id}
           fechaHoraActual={turnoAReprogramar?.fecha_hora_inicio}
           onSubmit={handleReprogramar}
           onCancel={() => setTurnoAReprogramar(null)}

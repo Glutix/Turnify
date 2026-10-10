@@ -136,6 +136,7 @@ export function ModalesGestionTurno({ gestion }: { gestion: GestionTurnoAdmin })
       >
         <ReprogramarTurnoForm
           servicioIds={turnoAReprogramar?.turno_servicios?.map((ts) => ts.servicio_id) ?? []}
+          turnoId={turnoAReprogramar?.id}
           fechaHoraActual={turnoAReprogramar?.fecha_hora_inicio}
           onSubmit={gestion.confirmarReprogramacion}
           onCancel={gestion.cerrarReprogramacion}

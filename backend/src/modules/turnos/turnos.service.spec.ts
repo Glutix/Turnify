@@ -90,6 +90,22 @@ describe("TurnosService", () => {
       expect(slots.map((s) => s.hora_inicio)).toEqual(["09:00"]);
     });
 
+    it("con excluirTurnoId no cuenta ese turno como ocupado (reprogramar)", async () => {
+      const slots = await service.consultarDisponibilidad([1], FECHA, 7);
+      expect(slots.map((s) => s.hora_inicio)).toContain("08:00");
+      expect(prismaMock.turno.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ id: { not: 7 } }),
+        }),
+      );
+    });
+
+    it("sin excluirTurnoId no filtra por id", async () => {
+      await service.consultarDisponibilidad([1], FECHA);
+      const where = prismaMock.turno.findMany.mock.calls[0][0].where;
+      expect(where).not.toHaveProperty("id");
+    });
+
     it("bloqueo_total ese día → sin horarios", async () => {
       horariosMock.obtenerExcepcionesParaFecha.mockResolvedValue([{ tipo: "bloqueo_total" }]);
       await expect(service.consultarDisponibilidad([1], FECHA)).resolves.toEqual([]);
@@ -279,6 +295,79 @@ describe("TurnosService", () => {
         turno({ estado: EstadoTurno.cancelado, turno_servicios: [] }),
       );
       await expect(service.reprogramarComoAdmin(1, "2099-01-05", "09:00")).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe("agenda de la admin: próximos, reservar y reprogramar (CU-20 / CU-41 / CU-42)", () => {
+    const FECHA = "2099-01-05";
+
+    beforeEach(() => {
+      prismaMock.servicio.findMany.mockResolvedValue([{ id: 1, duracion_minutos: 60, precio: "1000" }]);
+      horariosMock.obtenerExcepcionesParaFecha.mockResolvedValue([]);
+      horariosMock.obtenerFranjasActivasPorFecha.mockResolvedValue([
+        { hora_inicio: hora("08:00"), hora_fin: hora("12:00") },
+      ]);
+      prismaMock.turno.findMany.mockResolvedValue([]);
+    });
+
+    it("proximosAdmin: solo confirmados desde el comienzo de hoy, ordenados y con tope", async () => {
+      prismaMock.turno.findMany.mockResolvedValue([{ id: 1 }]);
+      const resultado = await service.proximosAdmin();
+
+      expect(resultado).toEqual([{ id: 1 }]);
+      const args = prismaMock.turno.findMany.mock.calls[0][0];
+      expect(args.where.estado).toBe(EstadoTurno.confirmado);
+      const ahora = ahoraDelSalon();
+      expect(args.where.fecha_hora_inicio.gte.getTime()).toBe(
+        Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth(), ahora.getUTCDate()),
+      );
+      expect(args.orderBy).toEqual({ fecha_hora_inicio: "asc" });
+      expect(args.take).toBe(100);
+    });
+
+    it("reservarComoAdmin con clienta existente: crea el turno confirmado bajo el lock de agenda", async () => {
+      prismaMock.usuario.findUnique.mockResolvedValue({ id: 7, nombre: "Ana", telefono: TELEFONO });
+      prismaMock.turno.create.mockResolvedValue({ id: 50 });
+
+      const resultado = await service.reservarComoAdmin({
+        servicios: [1],
+        fecha: FECHA,
+        hora_inicio: "09:00",
+        usuario_id: 7,
+      });
+
+      expect(resultado).toEqual({ id: 50 });
+      expect(prismaMock.$executeRawUnsafe.mock.calls[0][0]).toContain("pg_advisory_xact_lock");
+      const data = prismaMock.turno.create.mock.calls[0][0].data;
+      expect(data.usuario_id).toBe(7);
+      expect(data.estado).toBe(EstadoTurno.confirmado);
+      expect(data.turno_servicios.create).toEqual([{ servicio_id: 1, precio_unitario: "1000" }]);
+    });
+
+    it("reservarComoAdmin sobre un horario ocupado → 409 y no crea el turno", async () => {
+      prismaMock.turno.findMany.mockResolvedValue([{ id: 3 }]);
+      await expect(
+        service.reservarComoAdmin({ servicios: [1], fecha: FECHA, hora_inicio: "09:00", usuario_id: 7 }),
+      ).rejects.toThrow(ConflictException);
+      expect(prismaMock.turno.create).not.toHaveBeenCalled();
+    });
+
+    it("reprogramarComoAdmin caso feliz: original reprogramado y turno nuevo con turno_origen_id", async () => {
+      prismaMock.turno.findUnique.mockResolvedValue(
+        turno({
+          turno_servicios: [{ servicio_id: 1, precio_unitario: "1000", servicio: { duracion_minutos: 60 } }],
+        }),
+      );
+      prismaMock.turno.update.mockResolvedValue({ id: 1 });
+      prismaMock.turno.create.mockResolvedValue({ id: 2 });
+
+      const resultado = await service.reprogramarComoAdmin(1, FECHA, "09:00");
+
+      expect(resultado).toEqual({ id: 2 });
+      expect(prismaMock.turno.update.mock.calls[0][0].data).toEqual({ estado: EstadoTurno.reprogramado });
+      const dataNuevo = prismaMock.turno.create.mock.calls[0][0].data;
+      expect(dataNuevo.turno_origen_id).toBe(1);
+      expect(dataNuevo.turno_servicios.create).toEqual([{ servicio_id: 1, precio_unitario: "1000" }]);
     });
   });
 

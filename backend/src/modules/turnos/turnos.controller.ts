@@ -36,9 +36,15 @@ export class TurnosController {
   @ApiOperation({ summary: "Horarios disponibles para una fecha y servicios dados (CU-06)" })
   @ApiQuery({ name: "servicios", example: "1,2", description: "IDs separados por coma" })
   @ApiQuery({ name: "fecha", example: "2026-10-15" })
+  @ApiQuery({
+    name: "excluir_turno",
+    required: false,
+    description: "Id de un turno a ignorar (al reprogramarlo, no bloquea su propio horario)",
+  })
   consultarDisponibilidad(
     @Query("servicios") serviciosParam: string,
     @Query("fecha") fecha: string,
+    @Query("excluir_turno") excluirTurnoParam?: string,
   ) {
     if (!serviciosParam) {
       throw new BadRequestException("Falta el parámetro servicios");
@@ -52,7 +58,15 @@ export class TurnosController {
       throw new BadRequestException("servicios debe tener al menos un id numérico válido");
     }
 
-    return this.turnosService.consultarDisponibilidad(servicios, fecha);
+    let excluirTurnoId: number | undefined;
+    if (excluirTurnoParam) {
+      excluirTurnoId = Number(excluirTurnoParam);
+      if (!Number.isInteger(excluirTurnoId) || excluirTurnoId <= 0) {
+        throw new BadRequestException("excluir_turno debe ser un id numérico válido");
+      }
+    }
+
+    return this.turnosService.consultarDisponibilidad(servicios, fecha, excluirTurnoId);
   }
 
   @Get("dias-habilitados")
@@ -124,6 +138,13 @@ export class TurnosController {
   @ApiQuery({ name: "fecha", required: false, example: "2026-10-15" })
   agenda(@Query("fecha") fecha?: string) {
     return this.turnosService.agendaAdmin(fecha);
+  }
+
+  @SoloAdmin()
+  @Get("admin/proximos")
+  @ApiOperation({ summary: "Próximos turnos confirmados desde hoy (CU-20/RF31)" })
+  proximos() {
+    return this.turnosService.proximosAdmin();
   }
 
   @SoloAdmin()
