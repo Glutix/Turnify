@@ -1,4 +1,5 @@
 // frontend\src\pages\public\ServiciosPage.tsx
+import { Link } from "react-router-dom";
 import { useServicios } from "../../hooks/useServicios";
 import { formatearDuracion, formatearPrecio } from "../../utils/servicio";
 import type { Servicio } from "../../types/servicio";
@@ -66,6 +67,12 @@ export function ServiciosPage() {
                       {formatearPrecio(servicio.precio)}
                     </span>
                   </div>
+                  <Link
+                    to={`/servicios/${servicio.id}`}
+                    className="mt-4 inline-block text-sm font-medium text-rosewood transition-colors hover:text-espresso"
+                  >
+                    Ver detalles
+                  </Link>
                 </article>
               ))}
             </div>

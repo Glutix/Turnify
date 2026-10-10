@@ -21,6 +21,7 @@ import { ClientesAdminPage } from "../pages/admin/ClientesAdminPage";
 import { AdminLayout } from "../components/layout/AdminLayout";
 import { UsuariosAdminPage } from "../pages/admin/UsuariosAdminPage";
 import { ServiciosPage } from "../pages/public/ServiciosPage";
+import { ServicioDetallePage } from "../pages/public/ServicioDetallePage";
 import { PerfilPage } from "../pages/public/PerfilPage";
 import { MisTurnosPage } from "../pages/public/MisTurnosPage";
 
@@ -31,6 +32,7 @@ export function AppRouter() {
       <Route element={<PublicLayout />}>
         <Route path="/" element={<LandingPage />} />
         <Route path="/servicios" element={<ServiciosPage />} />
+        <Route path="/servicios/:id" element={<ServicioDetallePage />} />
         <Route path="/portafolio" element={<PortafolioPage />} />
         <Route path="/turnos" element={<TurnosPage />} />
         {/* Cualquier usuario logueado (cliente o admin) */}

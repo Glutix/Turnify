@@ -84,3 +84,28 @@ body {
 .card-glow.activo {
   opacity: 1;
 }
+
+/* ─── Hero del Inicio (parallax) ─────────────────────────── */
+
+/* Fondo fijo respecto al viewport: al hacer scroll el contenido se
+   desplaza y el fondo queda quieto (efecto parallax). Usa solo variables
+   de la paleta. */
+.hero-parallax {
+  background-color: var(--color-blush);
+  background-image:
+    radial-gradient(circle at 15% 20%,
+      color-mix(in srgb, var(--color-rosa) 35%, transparent) 0%,
+      transparent 45%),
+    radial-gradient(circle at 85% 75%,
+      color-mix(in srgb, var(--color-oro) 30%, transparent) 0%,
+      transparent 45%);
+  background-attachment: fixed;
+}
+
+/* iOS ignora background-attachment: fixed; en pantallas táctiles y con
+   "reducir movimiento" se deja el fondo normal. */
+@media (hover: none), (prefers-reduced-motion: reduce) {
+  .hero-parallax {
+    background-attachment: scroll;
+  }
+}

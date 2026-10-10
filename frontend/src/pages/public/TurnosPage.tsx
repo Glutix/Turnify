@@ -1,6 +1,6 @@
 // frontend\src\pages\public\TurnosPage.tsx
 import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { isAxiosError } from "axios";
 import { Button } from "../../components/common/Button";
 import { Input } from "../../components/common/Input";
@@ -56,8 +56,12 @@ export function TurnosPage() {
 
   // Paso 1: servicios
   const { data: servicios = [], isLoading: cargandoServicios } = useServicios();
-  const [serviciosSeleccionados, setServiciosSeleccionados] = useState<number[]>([]);
-
+// ?servicio=ID (desde "Reservar ahora" de las cards) preselecciona ese servicio.
+  const [searchParams] = useSearchParams();
+  const [serviciosSeleccionados, setServiciosSeleccionados] = useState<number[]>(() => {
+      const preseleccionado = Number(searchParams.get("servicio"));
+      return Number.isInteger(preseleccionado) && preseleccionado > 0 ? [preseleccionado] : [];
+  });
   // Paso 2: fecha y horario
   // Vacío hasta que se elige un día: solo se ofrecen los días con atención.
   const [fecha, setFecha] = useState("");
