@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
+  ConflictException,
 } from "@nestjs/common";
 import { type Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -11,6 +12,7 @@ import { CrearProductoDto } from "./dto/crear-producto.dto";
 import { ActualizarProductoDto } from "./dto/actualizar-producto.dto";
 import { ActualizarStockProductoDto } from "./dto/actualizar-stock-producto.dto";
 import { CloudinaryService } from "../cloudinary/cloudinary.service";
+import { createHash } from "node:crypto";
 
 const INCLUIR_RELACIONES = {
   categoria: { select: { id: true, nombre: true } },
@@ -129,39 +131,125 @@ export class ProductosService {
     return producto;
   }
 
-
   //! Cloudinary
-    async agregarImagen(productoId: number, archivo: Express.Multer.File) {
+  async agregarImagen(productoId: number, archivo: Express.Multer.File) {
     await this.findOne(productoId);
 
-    const cantidad = await this.prisma.imagenProducto.count({
-      where: { producto_id: productoId },
-    });
+    const nombreArchivo = createHash("sha256")
+      .update(archivo.buffer)
+      .digest("hex");
+    const carpeta = `${CARPETA_IMAGENES}/${productoId}`;
 
-    if (cantidad >= MAX_IMAGENES_POR_PRODUCTO) {
-      throw new BadRequestException(
-        `Un producto puede tener hasta ${MAX_IMAGENES_POR_PRODUCTO} imágenes`,
-      );
-    }
+    // Chequeo rápido para no subir a Cloudinary lo que seguro se rechaza.
+    // El definitivo se repite abajo, con la fila del producto bloqueada.
+    const previo = await this.evaluarImagenNueva(
+      this.prisma,
+      productoId,
+      `${carpeta}/${nombreArchivo}`,
+    );
+    if (previo.rechazo) throw this.errorRechazoImagen(previo.rechazo);
 
     const { url, publicId } = await this.cloudinaryService.subirImagen(
       archivo.buffer,
-      CARPETA_IMAGENES,
+      carpeta,
+      nombreArchivo,
     );
 
+    let rechazo: "duplicada" | "limite" | null;
     try {
-      await this.prisma.imagenProducto.create({
-        data: {
-          producto_id: productoId,
-          url_cloudinary: url,
-          public_id: publicId,
-          es_principal: cantidad === 0,
-        },
+      rechazo = await this.prisma.$transaction(async (tx) => {
+        // Bloquea el producto: serializa las altas de imagen simultáneas.
+        await tx.$queryRaw`SELECT id FROM productos WHERE id = ${productoId} FOR UPDATE`;
+
+        const evaluacion = await this.evaluarImagenNueva(
+          tx,
+          productoId,
+          publicId,
+        );
+        if (evaluacion.rechazo) return evaluacion.rechazo;
+
+        await tx.imagenProducto.create({
+          data: {
+            producto_id: productoId,
+            url_cloudinary: url,
+            public_id: publicId,
+            es_principal: evaluacion.cantidad === 0,
+          },
+        });
+        return null;
       });
     } catch (error) {
-      await this.eliminarDeCloudinary(publicId);
+      await this.eliminarSiQuedoHuerfana(publicId);
       throw error;
     }
+
+    if (rechazo) {
+      await this.eliminarSiQuedoHuerfana(publicId);
+      throw this.errorRechazoImagen(rechazo);
+    }
+
+    return this.findOne(productoId);
+  }
+
+  async reemplazarImagen(
+    productoId: number,
+    imagenId: number,
+    archivo: Express.Multer.File,
+  ) {
+    await this.buscarImagen(productoId, imagenId);
+
+    const nombreArchivo = createHash("sha256")
+      .update(archivo.buffer)
+      .digest("hex");
+    const carpeta = `${CARPETA_IMAGENES}/${productoId}`;
+
+    // Chequeo rápido para no subir lo que seguro se rechaza; el definitivo
+    // se repite abajo con la fila del producto bloqueada.
+    const repetidaPrevia = await this.prisma.imagenProducto.findFirst({
+      where: {
+        producto_id: productoId,
+        public_id: `${carpeta}/${nombreArchivo}`,
+      },
+    });
+    if (repetidaPrevia) throw this.errorRechazoImagen("duplicada");
+
+    const { url, publicId } = await this.cloudinaryService.subirImagen(
+      archivo.buffer,
+      carpeta,
+      nombreArchivo,
+    );
+
+    let anterior: string;
+    try {
+      anterior = await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM productos WHERE id = ${productoId} FOR UPDATE`;
+
+        const actual = await tx.imagenProducto.findFirst({
+          where: { id: imagenId, producto_id: productoId },
+        });
+        if (!actual) {
+          throw new NotFoundException(
+            `Imagen con id ${imagenId} no encontrada en el producto ${productoId}`,
+          );
+        }
+
+        const repetida = await tx.imagenProducto.findFirst({
+          where: { producto_id: productoId, public_id: publicId },
+        });
+        if (repetida) throw this.errorRechazoImagen("duplicada");
+
+        await tx.imagenProducto.update({
+          where: { id: imagenId },
+          data: { url_cloudinary: url, public_id: publicId },
+        });
+        return actual.public_id;
+      });
+    } catch (error) {
+      await this.eliminarSiQuedoHuerfana(publicId);
+      throw error;
+    }
+
+    await this.eliminarSiQuedoHuerfana(anterior);
 
     return this.findOne(productoId);
   }
@@ -226,6 +314,48 @@ export class ProductosService {
     }
 
     return imagen;
+  }
+
+  private async evaluarImagenNueva(
+    db: Prisma.TransactionClient,
+    productoId: number,
+    publicId: string,
+  ) {
+    const [cantidad, repetida] = await Promise.all([
+      db.imagenProducto.count({ where: { producto_id: productoId } }),
+      db.imagenProducto.findFirst({
+        where: { producto_id: productoId, public_id: publicId },
+      }),
+    ]);
+
+    const rechazo = repetida
+      ? ("duplicada" as const)
+      : cantidad >= MAX_IMAGENES_POR_PRODUCTO
+        ? ("limite" as const)
+        : null;
+
+    return { rechazo, cantidad };
+  }
+
+  private errorRechazoImagen(rechazo: "duplicada" | "limite") {
+    return rechazo === "duplicada"
+      ? new ConflictException("Esa imagen ya está cargada en este producto")
+      : new BadRequestException(
+          `Un producto puede tener hasta ${MAX_IMAGENES_POR_PRODUCTO} imágenes`,
+        );
+  }
+
+  // Una imagen repetida comparte archivo con la ya guardada, por eso solo se
+  // borra de Cloudinary si ninguna fila la referencia.
+  private async eliminarSiQuedoHuerfana(publicId: string) {
+    try {
+      const enUso = await this.prisma.imagenProducto.findFirst({
+        where: { public_id: publicId },
+      });
+      if (!enUso) await this.eliminarDeCloudinary(publicId);
+    } catch {
+      this.logger.warn(`No se pudo verificar ${publicId} para limpiarla`);
+    }
   }
 
   // Si Cloudinary falla, la base ya quedó correcta: a lo sumo queda un archivo

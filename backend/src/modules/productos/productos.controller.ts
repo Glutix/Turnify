@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Patch,
   Delete,
   Param,
@@ -95,5 +96,24 @@ export class ProductosController {
     @Param("imagenId", ParseIntPipe) imagenId: number,
   ) {
     return this.productosService.marcarImagenPrincipal(id, imagenId);
+  }
+
+  @SoloAdmin()
+  @Put(":id/imagenes/:imagenId")
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["imagen"],
+      properties: { imagen: { type: "string", format: "binary" } },
+    },
+  })
+  @UseInterceptors(FileInterceptor("imagen"))
+  reemplazarImagen(
+    @Param("id", ParseIntPipe) id: number,
+    @Param("imagenId", ParseIntPipe) imagenId: number,
+    @UploadedFile(new ImagenPipe()) archivo: Express.Multer.File,
+  ) {
+    return this.productosService.reemplazarImagen(id, imagenId, archivo);
   }
 }

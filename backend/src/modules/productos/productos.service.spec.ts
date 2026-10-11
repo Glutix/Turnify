@@ -1,9 +1,14 @@
 import { Test, type TestingModule } from "@nestjs/testing";
-import { NotFoundException } from "@nestjs/common";
+import {
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from "@nestjs/common";
 import { ProductosService } from "./productos.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CategoriasProductoService } from "../categorias-producto/categorias-producto.service";
 import { CloudinaryService } from "../cloudinary/cloudinary.service";
+import { createHash } from "node:crypto";
 
 const prismaMock = {
   producto: {
@@ -12,6 +17,21 @@ const prismaMock = {
     create: jest.fn(),
     update: jest.fn(),
   },
+  imagenProducto: {
+    count: jest.fn(),
+    findFirst: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    updateMany: jest.fn(),
+    delete: jest.fn(),
+  },
+  $queryRaw: jest.fn(),
+  $transaction: jest.fn(),
+};
+
+const cloudinaryMock = {
+  subirImagen: jest.fn(),
+  eliminarImagen: jest.fn(),
 };
 
 const categoriasMock = { findOne: jest.fn() };
@@ -30,14 +50,17 @@ describe("ProductosService", () => {
   let service: ProductosService;
 
   beforeEach(async () => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
+    prismaMock.$transaction.mockImplementation(async (arg) =>
+      typeof arg === "function" ? arg(prismaMock) : Promise.all(arg),
+    );
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProductosService,
         { provide: PrismaService, useValue: prismaMock },
         { provide: CategoriasProductoService, useValue: categoriasMock },
-        { provide: CloudinaryService, useValue: {} },
+        { provide: CloudinaryService, useValue: cloudinaryMock },
       ],
     }).compile();
 
@@ -232,6 +255,266 @@ describe("ProductosService", () => {
       prismaMock.producto.findUnique.mockResolvedValue(producto);
 
       await expect(service.findOneCatalogo(1)).resolves.toEqual(producto);
+    });
+  });
+
+  //! Imágenes de productos
+  describe("imágenes", () => {
+    const archivo = {
+      buffer: Buffer.from("contenido de prueba"),
+      mimetype: "image/jpeg",
+      size: 19,
+    } as Express.Multer.File;
+    const hash = createHash("sha256").update(archivo.buffer).digest("hex");
+    const carpeta = "turnify/productos/1";
+    const publicId = `${carpeta}/${hash}`;
+    const subida = { url: "https://res.cloudinary.com/x/nueva.webp", publicId };
+    const imagen = {
+      id: 5,
+      producto_id: 1,
+      public_id: `${carpeta}/vieja`,
+      es_principal: true,
+    };
+
+    beforeEach(() => {
+      prismaMock.producto.findUnique.mockResolvedValue(producto);
+      prismaMock.imagenProducto.count.mockResolvedValue(0);
+      prismaMock.imagenProducto.findFirst.mockResolvedValue(null);
+      cloudinaryMock.subirImagen.mockResolvedValue(subida);
+    });
+
+    describe("agregarImagen", () => {
+      it("lanza NotFoundException y no sube nada si el producto no existe", async () => {
+        prismaMock.producto.findUnique.mockResolvedValue(null);
+
+        await expect(service.agregarImagen(1, archivo)).rejects.toThrow(
+          NotFoundException,
+        );
+        expect(cloudinaryMock.subirImagen).not.toHaveBeenCalled();
+      });
+
+      it("rechaza con 400 sin subir nada si ya tiene el máximo de imágenes", async () => {
+        prismaMock.imagenProducto.count.mockResolvedValue(5);
+
+        await expect(service.agregarImagen(1, archivo)).rejects.toThrow(
+          BadRequestException,
+        );
+        expect(cloudinaryMock.subirImagen).not.toHaveBeenCalled();
+      });
+
+      it("rechaza con 409 sin subir nada si la imagen ya está en el producto", async () => {
+        prismaMock.imagenProducto.findFirst.mockResolvedValueOnce({ id: 9 });
+
+        await expect(service.agregarImagen(1, archivo)).rejects.toThrow(
+          ConflictException,
+        );
+        expect(cloudinaryMock.subirImagen).not.toHaveBeenCalled();
+      });
+
+      it("sube a la carpeta del producto con el hash como nombre y guarda la primera como principal", async () => {
+        await service.agregarImagen(1, archivo);
+
+        expect(cloudinaryMock.subirImagen).toHaveBeenCalledWith(
+          archivo.buffer,
+          carpeta,
+          hash,
+        );
+        expect(prismaMock.$queryRaw).toHaveBeenCalled();
+        expect(prismaMock.imagenProducto.create).toHaveBeenCalledWith({
+          data: {
+            producto_id: 1,
+            url_cloudinary: subida.url,
+            public_id: publicId,
+            es_principal: true,
+          },
+        });
+      });
+
+      it("no marca como principal a las imágenes que se suman después", async () => {
+        prismaMock.imagenProducto.count.mockResolvedValue(2);
+
+        await service.agregarImagen(1, archivo);
+
+        expect(prismaMock.imagenProducto.create).toHaveBeenCalledWith({
+          data: expect.objectContaining({ es_principal: false }),
+        });
+      });
+
+      it("si el límite se alcanza mientras se sube, rechaza con 400 y borra la imagen subida", async () => {
+        prismaMock.imagenProducto.count
+          .mockResolvedValueOnce(4)
+          .mockResolvedValueOnce(5);
+
+        await expect(service.agregarImagen(1, archivo)).rejects.toThrow(
+          BadRequestException,
+        );
+        expect(prismaMock.imagenProducto.create).not.toHaveBeenCalled();
+        expect(cloudinaryMock.eliminarImagen).toHaveBeenCalledWith(publicId);
+      });
+
+      it("si la misma imagen aparece mientras se sube, rechaza con 409 y NO borra el archivo que usa otra fila", async () => {
+        prismaMock.imagenProducto.findFirst
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce({ id: 9 })
+          .mockResolvedValueOnce({ id: 9 });
+
+        await expect(service.agregarImagen(1, archivo)).rejects.toThrow(
+          ConflictException,
+        );
+        expect(cloudinaryMock.eliminarImagen).not.toHaveBeenCalled();
+      });
+
+      it("si falla el guardado en la base, borra la imagen subida y propaga el error", async () => {
+        prismaMock.imagenProducto.create.mockRejectedValue(
+          new Error("base caída"),
+        );
+
+        await expect(service.agregarImagen(1, archivo)).rejects.toThrow(
+          "base caída",
+        );
+        expect(cloudinaryMock.eliminarImagen).toHaveBeenCalledWith(publicId);
+      });
+    });
+
+    describe("eliminarImagen", () => {
+      it("lanza NotFoundException si la imagen no existe en el producto", async () => {
+        await expect(service.eliminarImagen(1, 5)).rejects.toThrow(
+          NotFoundException,
+        );
+      });
+
+      it("lanza NotFoundException sin consultar la base si el id de la imagen supera el máximo", async () => {
+        await expect(service.eliminarImagen(1, 3000000000)).rejects.toThrow(
+          NotFoundException,
+        );
+        expect(prismaMock.imagenProducto.findFirst).not.toHaveBeenCalled();
+      });
+
+      it("al eliminar la principal, promueve a la más antigua que queda y borra el archivo", async () => {
+        prismaMock.imagenProducto.findFirst
+          .mockResolvedValueOnce(imagen)
+          .mockResolvedValueOnce({ id: 7 });
+
+        await service.eliminarImagen(1, 5);
+
+        expect(prismaMock.imagenProducto.delete).toHaveBeenCalledWith({
+          where: { id: 5 },
+        });
+        expect(prismaMock.imagenProducto.update).toHaveBeenCalledWith({
+          where: { id: 7 },
+          data: { es_principal: true },
+        });
+        expect(cloudinaryMock.eliminarImagen).toHaveBeenCalledWith(
+          imagen.public_id,
+        );
+      });
+
+      it("no promueve a nadie si la imagen eliminada no era la principal", async () => {
+        prismaMock.imagenProducto.findFirst.mockResolvedValueOnce({
+          ...imagen,
+          es_principal: false,
+        });
+
+        await service.eliminarImagen(1, 5);
+
+        expect(prismaMock.imagenProducto.update).not.toHaveBeenCalled();
+      });
+
+      it("no promueve a nadie si no quedan más imágenes", async () => {
+        prismaMock.imagenProducto.findFirst
+          .mockResolvedValueOnce(imagen)
+          .mockResolvedValueOnce(null);
+
+        await service.eliminarImagen(1, 5);
+
+        expect(prismaMock.imagenProducto.update).not.toHaveBeenCalled();
+      });
+
+      it("no falla si Cloudinary no puede borrar el archivo", async () => {
+        prismaMock.imagenProducto.findFirst.mockResolvedValueOnce({
+          ...imagen,
+          es_principal: false,
+        });
+        cloudinaryMock.eliminarImagen.mockRejectedValue(new Error("sin red"));
+
+        await expect(service.eliminarImagen(1, 5)).resolves.toBeDefined();
+      });
+    });
+
+    describe("marcarImagenPrincipal", () => {
+      it("lanza NotFoundException si la imagen no existe en el producto", async () => {
+        await expect(service.marcarImagenPrincipal(1, 5)).rejects.toThrow(
+          NotFoundException,
+        );
+      });
+
+      it("desmarca todas las del producto y marca la elegida en una sola transacción", async () => {
+        prismaMock.imagenProducto.findFirst.mockResolvedValueOnce(imagen);
+
+        await service.marcarImagenPrincipal(1, 5);
+
+        expect(prismaMock.imagenProducto.updateMany).toHaveBeenCalledWith({
+          where: { producto_id: 1 },
+          data: { es_principal: false },
+        });
+        expect(prismaMock.imagenProducto.update).toHaveBeenCalledWith({
+          where: { id: 5 },
+          data: { es_principal: true },
+        });
+        expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe("reemplazarImagen", () => {
+      it("lanza NotFoundException y no sube nada si la imagen no existe", async () => {
+        await expect(service.reemplazarImagen(1, 5, archivo)).rejects.toThrow(
+          NotFoundException,
+        );
+        expect(cloudinaryMock.subirImagen).not.toHaveBeenCalled();
+      });
+
+      it("rechaza con 409 sin subir nada si el archivo ya está en el producto", async () => {
+        prismaMock.imagenProducto.findFirst
+          .mockResolvedValueOnce(imagen)
+          .mockResolvedValueOnce({ id: 9 });
+
+        await expect(service.reemplazarImagen(1, 5, archivo)).rejects.toThrow(
+          ConflictException,
+        );
+        expect(cloudinaryMock.subirImagen).not.toHaveBeenCalled();
+      });
+
+      it("cambia la URL y el public_id de la misma fila y borra el archivo anterior", async () => {
+        prismaMock.imagenProducto.findFirst
+          .mockResolvedValueOnce(imagen)
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(imagen)
+          .mockResolvedValueOnce(null);
+
+        await service.reemplazarImagen(1, 5, archivo);
+
+        expect(prismaMock.imagenProducto.update).toHaveBeenCalledWith({
+          where: { id: 5 },
+          data: { url_cloudinary: subida.url, public_id: publicId },
+        });
+        expect(cloudinaryMock.eliminarImagen).toHaveBeenCalledWith(
+          imagen.public_id,
+        );
+      });
+
+      it("si la imagen desaparece mientras se sube, rechaza con 404 y borra solo el archivo nuevo", async () => {
+        prismaMock.imagenProducto.findFirst
+          .mockResolvedValueOnce(imagen)
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(null);
+
+        await expect(service.reemplazarImagen(1, 5, archivo)).rejects.toThrow(
+          NotFoundException,
+        );
+        expect(prismaMock.imagenProducto.update).not.toHaveBeenCalled();
+        expect(cloudinaryMock.eliminarImagen).toHaveBeenCalledTimes(1);
+        expect(cloudinaryMock.eliminarImagen).toHaveBeenCalledWith(publicId);
+      });
     });
   });
 });

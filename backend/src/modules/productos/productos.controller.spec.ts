@@ -10,8 +10,8 @@ const rutas = Object.getOwnPropertyNames(ProductosController.prototype).filter(
 );
 
 describe("ProductosController", () => {
-  it("expone las 8 rutas de administración", () => {
-    expect(rutas).toHaveLength(8);
+  it("expone las 9 rutas de administración", () => {
+    expect(rutas).toHaveLength(9);
   });
 
   it.each(rutas)("%s exige JWT y rol admin", (nombre) => {
