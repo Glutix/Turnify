@@ -15,12 +15,27 @@ export interface ImagenSubida {
 export class CloudinaryService {
   private readonly logger = new Logger(CloudinaryService.name);
 
-  async subirImagen(buffer: Buffer, carpeta: string): Promise<ImagenSubida> {
+  async subirImagen(
+    buffer: Buffer,
+    carpeta: string,
+    nombreArchivo?: string,
+  ): Promise<ImagenSubida> {
     this.configurar();
 
     return new Promise<ImagenSubida>((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
-        { folder: carpeta, resource_type: "image" },
+        // Se optimiza al subir: WebP, máx. 1600 px de lado y calidad automática.
+        // No se conserva el original.
+        {
+          folder: carpeta,
+          public_id: nombreArchivo,
+          overwrite: false,
+          resource_type: "image",
+          format: "webp",
+          transformation: [
+            { width: 1600, height: 1600, crop: "limit", quality: "auto" },
+          ],
+        },
         (error, resultado) => {
           if (error || !resultado) {
             this.logger.error(
